@@ -61,7 +61,7 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
     donor_df["submitted_id"] = donor_df["donor"].apply(lambda x: f"NDRI_DONOR_{x}")
     donor_df["external_id"] = donor_df["donor"]
     donor_df["sex"] = donor_df["gender"]
-    donor_df["tpc_submitted"] = True
+    donor_df["tpc_submitted"] = "True"
     donor_df["eligibility"] = ""
     donor_df["hardy_scale"] = ""
     donor_sheet = donor_df[[
@@ -406,7 +406,10 @@ def main():
     generate_unalignedreads_sheet(args)
     generate_alignedreads_sheet(args)
     with pd.ExcelWriter(args.out_combined_xlsx, engine="openpyxl") as writer:
-        pd.read_excel(args.out_donor_xlsx)        .to_excel(writer, sheet_name="Donor",           index=False)
+        df_donor = pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str})
+        df_donor["tpc_submitted"] = df_donor["tpc_submitted"].str.capitalize()
+        df_donor.to_excel(writer, sheet_name="Donor", index=False)
+        #pd.read_excel(args.out_donor_xlsx)        .to_excel(writer, sheet_name="Donor",           index=False)
         pd.read_excel(args.out_tissue_xlsx)       .to_excel(writer, sheet_name="Tissue",          index=False)
         pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
         pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)
@@ -414,6 +417,7 @@ def main():
         pd.read_excel(args.out_fileset_xlsx)      .to_excel(writer, sheet_name="FileSet",         index=False)
         pd.read_excel(args.out_unalignedreads_xlsx).to_excel(writer, sheet_name="UnalignedReads",   index=False)
         pd.read_excel(args.out_alignedreads_xlsx) .to_excel(writer, sheet_name="AlignedReads",     index=False)
+    print(f"✅ The combined metadata Excel is saved to: {args.out_combined_xlsx}")
 
 if __name__ == "__main__":
     main()
