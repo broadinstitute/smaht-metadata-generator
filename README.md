@@ -195,8 +195,7 @@ metadata-pipeline/
 
 ---
 
-## License & Author
+## License
 
-**Author:** Shadi Zaheri  
 **License:** Broad Institute of MIT and Harvard
 
