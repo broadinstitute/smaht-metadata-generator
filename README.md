@@ -176,6 +176,24 @@ python generate_metadata.py \
 - **Automation & CI**: Integrate with GitHub Actions or a scheduler to auto-run whenever new raw data files appear.  
 
 ---
+---
+
+## Repository Structure
+
+```
+metadata-pipeline/
+├── scripts/                    # Python scripts for generating metadata sheets
+│   ├── generate_metadata.py
+│   ├── generate_fileset_sheet.py
+│   ├── generate_unaligned_reads_sheet.py
+│   └── generate_aligned_reads_sheet.py
+├── files/                      # Reference and input data files
+│   └── tissue_uberon_identifiers.tsv
+├── requirements.txt            # Required Python packages
+└── README.md                   # This documentation
+```
+
+---
 
 ## License & Author
 
