@@ -14,9 +14,9 @@ __version__ = "1.0"
 import pandas as pd
 import argparse
 
-from generate_fileset_sheet import generate_fileset_sheet
-from generate_unaligned_reads_sheet import generate_unalignedreads_sheet
-from generate_aligned_reads_sheet import generate_alignedreads_sheet
+from .generate_fileset_sheet import generate_fileset_sheet
+from .generate_unaligned_reads_sheet import generate_unalignedreads_sheet
+from .generate_aligned_reads_sheet import generate_alignedreads_sheet
 
 
 def format_tissue_submitted_id(donor_id, core_code, tissue_label):

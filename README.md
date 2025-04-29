@@ -181,17 +181,80 @@ python generate_metadata.py \
 ## Repository Structure
 
 ```
-metadata-pipeline/
-├── scripts/                    # Python scripts for generating metadata sheets
-│   ├── generate_metadata.py
-│   ├── generate_fileset_sheet.py
-│   ├── generate_unaligned_reads_sheet.py
-│   └── generate_aligned_reads_sheet.py
-├── files/                      # Reference and input data files
+smaht-metadata-generator/
+├── src/
+│   └── metagen/
+│       ├── __init__.py
+│       ├── cli.py
+│       ├── generate_fileset_sheet.py
+│       ├── generate_unaligned_reads_sheet.py
+│       └── generate_aligned_reads_sheet.py
+├── files/
 │   └── tissue_uberon_identifiers.tsv
-├── requirements.txt            # Required Python packages
-└── README.md                   # This documentation
+├── requirements.txt
+└── README.md
 ```
+
+---
+
+## Metagen Installation
+
+```bash
+git clone git@github.com:broadinstitute/smaht-metadata-generator.git
+cd smaht-metadata-generator
+pip install .
+
+metagen --help
+```
+
+---
+
+## Metagen Usage
+
+Generate metadata using the `metadata` command:
+```bash
+metagen metadata \
+--donor-info donor_info.tsv \
+--inputs short.tsv long.tsv \
+--rna rna_watchmaker.tsv \
+--uberon tissue_uberon_identifiers.tsv \
+--submitter-prefix BROAD \
+--output-dir output_directory \
+--combined-filename all_metadata.xlsx
+```
+
+Generate a fileset sheet:
+
+```bash
+metagen fileset \
+  --inputs short_read_samples.tsv long_read_samples.tsv \
+  --rna rna_watchmaker_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
+Generate an unaligned reads sheet:
+
+```bash
+metagen unalignedreads \
+  --inputs long_read_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
+Generate an aligned reads sheet:
+
+```bash
+metagen alignedreads \
+  --inputs short_read_samples.tsv long_read_samples.tsv \
+  --rna rna_watchmaker_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
 
 ---
 
