@@ -119,18 +119,21 @@ def generate_fileset_sheet(args):
         all_input.append(df[["donor_id", "collaborator_sample_id", "sample_id", "source_type"]])
 
     # RNA input
-    rna_df = pd.read_csv(args.rna, sep="\t")
-    rna_df["donor_id"] = rna_df["donor_id"].astype(str)
-    rna_df["collaborator_sample_id"] = rna_df["collaborator_sample_id"].astype(str)
-    rna_df["sample_id"] = rna_df.get("sample_id", rna_df["collaborator_sample_id"])
-    lr = args.rna.lower()
-    if "watchmaker" in lr:
-        rna_df["source_type"] = "RNA_WATCHMAKER"
-    elif "truseq" in lr:
-        rna_df["source_type"] = "RNA_TRUSEQ"
-    else:
-        rna_df["source_type"] = "UNKNOWN"
-    all_input.append(rna_df[["donor_id", "collaborator_sample_id", "sample_id", "source_type"]])
+    # Optional RNA input
+    if getattr(args, "rna", None):
+        rna_df = pd.read_csv(args.rna, sep="\t")
+        rna_df["donor_id"] = rna_df["donor_id"].astype(str)
+        rna_df["collaborator_sample_id"] = rna_df["collaborator_sample_id"].astype(str)
+        rna_df["sample_id"] = rna_df.get("sample_id", rna_df["collaborator_sample_id"])
+        lr = args.rna.lower()
+        if "watchmaker" in lr:
+            rna_df["source_type"] = "RNA_WATCHMAKER"
+        elif "truseq" in lr:
+            rna_df["source_type"] = "RNA_TRUSEQ"
+        else:
+            rna_df["source_type"] = "UNKNOWN"
+        all_input.append(rna_df[["donor_id", "collaborator_sample_id", "sample_id", "source_type"]])
+
 
     lookup = pd.concat(all_input, ignore_index=True)
 
@@ -172,6 +175,21 @@ def generate_fileset_sheet(args):
 
     # assemble and write outputs
     out_df = pd.DataFrame(records)
+    library_df = pd.read_csv(args.out_library_tsv, sep="\t")
+    library_ids = set(library_df["submitted_id"])
+
+    def match_libraries(fileset_id):
+        parts = fileset_id.split("_")
+        donor = parts[2]
+        tissue_label = "_".join(parts[3:-2])  # handles multi-word tissue names
+        library_type = parts[-2]
+        replicate_suffix = parts[-1]
+
+        lib_id = f"{args.submitter_prefix}_LIBRARY_{donor}_{tissue_label}_{library_type}_{replicate_suffix}".upper()
+        return lib_id if lib_id in library_ids else ""
+
+    out_df["libraries"] = out_df["submitted_id"].apply(match_libraries)
+    
     for c in ["submitted_id", "description", "libraries", "sequencing", "samples"]:
         if c not in out_df.columns:
             out_df[c] = ""

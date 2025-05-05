@@ -9,7 +9,11 @@ def generate_alignedreads_sheet(args):
         for f in args.inputs
         if "long" not in f.lower()
     }
-    file_labels[args.rna] = ("RNA_TRUSEQ" if "truseq" in args.rna.lower() else "RNA_WATCHMAKER")
+    # file_labels[args.rna] = ("RNA_TRUSEQ" if "truseq" in args.rna.lower() else "RNA_WATCHMAKER")
+    if getattr(args, "rna", None):
+        file_labels[args.rna] = (
+            "RNA_TRUSEQ" if "truseq" in args.rna.lower() else "RNA_WATCHMAKER"
+        )
 
     fileset_df = pd.read_csv(args.out_fileset_tsv, sep="\t")
 

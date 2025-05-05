@@ -74,12 +74,19 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
     # --- TISSUE SHEET ---
     uberon_df = pd.read_csv(uberon_tsv, sep="\t")
     df_list = []
-    for f in input_files + [rna_tsv]:
+    for f in input_files:
         df = pd.read_csv(f, sep="\t")
         df = df.dropna(subset=["collaborator_sample_id", "donor_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
         df["donor_id"] = df["donor_id"].astype(str)
         df_list.append(df)
+    if rna_tsv:
+        df_rna = pd.read_csv(rna_tsv, sep="\t")
+        df_rna = df_rna.dropna(subset=["collaborator_sample_id", "donor_id"])
+        df_rna["collaborator_sample_id"] = df_rna["collaborator_sample_id"].astype(str)
+        df_rna["donor_id"] = df_rna["donor_id"].astype(str)
+        df_list.append(df_rna)
+
     df_all = pd.concat(df_list, ignore_index=True)
     df_all["core_id"] = df_all["collaborator_sample_id"].apply(lambda x: x.split("-")[1])
     df_all["external_id"] = df_all["collaborator_sample_id"].apply(lambda x: "-".join(x.split("-")[:2]))
@@ -141,8 +148,9 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
 
     # --- ANALYTE SHEET ---
     file_labels = {f: "GDNA_LONGREAD" if "long" in f.lower() else "GDNA_SHORTREAD"
-                   for f in input_files}
-    file_labels[rna_tsv] = "RNA_WATCHMAKER"
+               for f in input_files}
+    if rna_tsv:
+        file_labels[rna_tsv] = "RNA_WATCHMAKER"
 
     analyte_records = []
     for f, label in file_labels.items():
@@ -163,10 +171,8 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
 
             donor_part = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
-            tissue_label = tissue_map.get(core, core) \
-                               .replace(" ", "-") \
-                               .upper()
-        
+            tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
+
             analyte_id = (
                 f"{submitter_prefix}_ANALYTE_"
                 f"{donor_part}_{tissue_label}_{label}"
@@ -179,7 +185,6 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
                 "external_id":    sample_id,
                 "samples":        ts_match["submitted_id"].values[0]
             })
-
 
     analyte_df = pd.DataFrame(analyte_records)
     analyte_columns = [
@@ -234,7 +239,9 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
         ext_id = row["external_id"]
 
         donor = ext_id.split("-")[0]
-        tissue_label = analyte_id.split("_")[3]
+        #tissue_label = analyte_id.split("_")[3]
+        core = ext_id.split("-")[1]  # Extract core from collaborator_sample_id
+        tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
         library_type = get_library_type(analyte_id)
         assay = infer_assay(library_type)
 
@@ -248,29 +255,6 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
             "submitted_id": lib_id,
             "analytes": analyte_id,
             "assay": assay
-        })
-
-    for _, row in analyte_df.iterrows():
-        analyte_id = row["submitted_id"]
-        ext_id = row["external_id"]            
-        donor = ext_id.split("-")[0]
-        core  = ext_id.split("-")[1]
-        tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
-        library_type = get_library_type(analyte_id)
-        assay  = infer_assay(library_type)
-        key = (donor, tissue_label, library_type)
-        lib_counter[key] = lib_counter.get(key, 0) + 1
-        suffix = f"_{lib_counter[key]}"
-
-        lib_id = (
-            f"{submitter_prefix}_LIBRARY_"
-            f"{donor}_{tissue_label}_{library_type}{suffix}"
-        ).upper()
-
-        library_records.append({
-            "submitted_id": lib_id,
-            "analytes":     analyte_id,
-            "assay":        assay
         })
 
     library_df = pd.DataFrame(library_records)
@@ -308,7 +292,7 @@ def main():
         help="List of input TSVs for short- and long-read samples (collaborator_sample_id, donor_id, etc.)"
     )
     parser.add_argument(
-        "--rna", required=True,
+        "--rna", required=False,
         help="Path to the RNA input TSV (filtered_rna_watchmaker or filtered_rna_truseq)"
     )
     parser.add_argument(
