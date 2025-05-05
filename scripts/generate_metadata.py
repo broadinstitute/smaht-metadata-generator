@@ -392,9 +392,9 @@ def main():
     with pd.ExcelWriter(args.out_combined_xlsx, engine="openpyxl") as writer:
         df_donor = pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str})
         df_donor["tpc_submitted"] = df_donor["tpc_submitted"].str.capitalize()
-        df_donor.to_excel(writer, sheet_name="Donor", index=False)
+        df_donor.to_excel(writer, sheet_name="(Donor)", index=False)
         #pd.read_excel(args.out_donor_xlsx)        .to_excel(writer, sheet_name="Donor",           index=False)
-        pd.read_excel(args.out_tissue_xlsx)       .to_excel(writer, sheet_name="Tissue",          index=False)
+        pd.read_excel(args.out_tissue_xlsx)       .to_excel(writer, sheet_name="(Tissue)",          index=False)
         pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
         pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)
         pd.read_excel(args.out_library_xlsx)      .to_excel(writer, sheet_name="Library",         index=False)

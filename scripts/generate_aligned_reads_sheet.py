@@ -50,13 +50,20 @@ def generate_alignedreads_sheet(args):
             file_format = filename.split('.')[-1]
 
             # lookup or cache FileSet ID
-            fs_key = (donor, tissue_label, lib_type)
+            #fs_key = (donor, tissue_label, lib_type)
+            #if fs_key not in fileset_ids:
+            #    # find matching FileSet
+            #    mask = fileset_df["submitted_id"].str.contains(
+            #        f"{donor}_{tissue_label}_{lib_type}", na=False
+            #    )
+            #    fileset_ids[fs_key] = fileset_df.loc[mask, "submitted_id"].iat[0] if mask.any() else ""
+            #file_set_id = fileset_ids[fs_key]
+
+            fs_key = (donor, tissue_label, lib_type, count)
             if fs_key not in fileset_ids:
-                # find matching FileSet
-                mask = fileset_df["submitted_id"].str.contains(
-                    f"{donor}_{tissue_label}_{lib_type}", na=False
-                )
-                fileset_ids[fs_key] = fileset_df.loc[mask, "submitted_id"].iat[0] if mask.any() else ""
+                fs_id = f"{args.submitter_prefix}_FILE-SET_{donor}_{tissue_label}_{lib_type}_{count}".upper()
+                match = fileset_df[fileset_df["submitted_id"] == fs_id]
+                fileset_ids[fs_key] = fs_id if not match.empty else ""
             file_set_id = fileset_ids[fs_key]
 
             aligned_records.append({
@@ -75,7 +82,7 @@ def generate_alignedreads_sheet(args):
                 "reference_genome": "broad_grch38",
                 "derived_from": "",
                 "external_quality_metrics": "",
-                "software": "STAR"
+                "software": "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8"
             })
 
     aligned_df = pd.DataFrame(aligned_records)

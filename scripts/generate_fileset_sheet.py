@@ -26,7 +26,7 @@ def infer_sequencing(library_type):
     elif "TRUSEQ" in library_type:
         return "BROAD_SEQUENCING_NOVASEQ6000_150BP_75M"
     else:
-        return "BROAD_SEQUENCING_NOVASEQX_25B_150BP_160X"
+        return "BROAD_SEQUENCING_NOVASEQX_25B_150BP_80X"
 
 
 def generate_fileset_sheet(args):
