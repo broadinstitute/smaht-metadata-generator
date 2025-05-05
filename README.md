@@ -20,55 +20,6 @@ This pipeline reads in: donor metadata, sample tables for short‑read, long‑r
 - **AlignedReads**: alignment outputs (CRAM)
 
 These are output both as TSV and XLSX.
----
-
-## Optional Preprocessing Utilities
-
-To assist with metadata preparation, we provide optional helper scripts in the [`utils/`](./utils) directory. These are **not required**, but they can help standardize and automate input formatting prior to running the metadata generation pipeline.
-
----
-
-### `0B_strip_cram_and_bam_paths.py`
-
-This script strips full file paths in your sample tables down to just the base file name (e.g., `gs://bucket/data/sample.bam` → `sample.bam`).  
-It works for columns commonly used in Unaligned and Aligned reads inputs, such as:
-
-- `bam_path`
-- `bam_index_path`
-- `cram_path`
-- `cram_index_path`
-
-**Input:**  
-A tab-delimited `.tsv` file with at least the following columns:
-
-| Column            | Description                            |
-|-------------------|----------------------------------------|
-| `sample_id`       | Unique ID for the sample (any format)  |
-| `bam_path`        | Full BAM path (e.g. `gs://...`)        |
-| `bam_index_path`  | Full BAM index path (optional)         |
-| `cram_path`       | Full CRAM path (e.g. `gs://...`)       |
-| `cram_index_path` | Full CRAM index path (optional)        |
-
-**Output:**  
-A `.tsv` with the same structure, but with only the file names in the above fields.
-
-**Example:**
-
-**Input:**
-
-| sample_id | bam_path                          | cram_path                          |
-|-----------|-----------------------------------|------------------------------------|
-| SMHT001   | gs://bucket/data/SMHT001.bam      | gs://bucket/data/SMHT001.cram      |
-
-**Output:**
-
-| sample_id | bam_path     | cram_path     |
-|-----------|--------------|---------------|
-| SMHT001   | SMHT001.bam  | SMHT001.cram  |
-
-**Usage:**
-```bash
-python utils/0B_strip_cram_and_bam_paths.py <input_tsv> <output_tsv>
 
 ---
 
@@ -115,16 +66,7 @@ Additional columns (e.g. `input_bam`, `cram_path`) are used for unaligned/aligne
 - Must include:
   - `tissue_identifier_code` (e.g. `3S`)  
   - `corresponding_tissue`   (e.g. `Heart`)
-  
-The input_examples/ folder includes sample TSVs that demonstrate the expected format for:
 
-Donor info files
-
-Short-read, long-read, and RNA sample tables
-
-UBERON tissue mapping files
-
-These examples are intended to help you test the pipeline or structure your own metadata inputs.
 ---
 
 ## Generated Sheets
@@ -239,20 +181,80 @@ python generate_metadata.py \
 ## Repository Structure
 
 ```
-metadata-pipeline/
-├── scripts/                    # Python scripts for generating metadata sheets
-│   ├── generate_metadata.py
-│   ├── generate_fileset_sheet.py
-│   ├── generate_unaligned_reads_sheet.py
-│   └── generate_aligned_reads_sheet.py
-├── files/                      # Reference and input data files
+smaht-metadata-generator/
+├── src/
+│   └── metagen/
+│       ├── __init__.py
+│       ├── cli.py
+│       ├── generate_fileset_sheet.py
+│       ├── generate_unaligned_reads_sheet.py
+│       └── generate_aligned_reads_sheet.py
+├── files/
 │   └── tissue_uberon_identifiers.tsv
-├── input_examples/                    # Example of input files
-│   ├── Short-read, long-read, and RNA sample tables
-│   ├── Donor info files
-│   └── UBERON tissue mapping files
-├── README.md                   # This documentation
+├── requirements.txt
+└── README.md
 ```
+
+---
+
+## Metagen Installation
+
+```bash
+git clone git@github.com:broadinstitute/smaht-metadata-generator.git
+cd smaht-metadata-generator
+pip install .
+
+metagen --help
+```
+
+---
+
+## Metagen Usage
+
+Generate metadata using the `metadata` command:
+```bash
+metagen metadata \
+--donor-info donor_info.tsv \
+--inputs short.tsv long.tsv \
+--rna rna_watchmaker.tsv \
+--uberon tissue_uberon_identifiers.tsv \
+--submitter-prefix BROAD \
+--output-dir output_directory \
+--combined-filename all_metadata.xlsx
+```
+
+Generate a fileset sheet:
+
+```bash
+metagen fileset \
+  --inputs short_read_samples.tsv long_read_samples.tsv \
+  --rna rna_watchmaker_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
+Generate an unaligned reads sheet:
+
+```bash
+metagen unalignedreads \
+  --inputs long_read_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
+Generate an aligned reads sheet:
+
+```bash
+metagen alignedreads \
+  --inputs short_read_samples.tsv long_read_samples.tsv \
+  --rna rna_watchmaker_samples.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --output-dir output_directory
+```
+
 
 ---
 
