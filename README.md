@@ -20,6 +20,55 @@ This pipeline reads in: donor metadata, sample tables for short‑read, long‑r
 - **AlignedReads**: alignment outputs (CRAM)
 
 These are output both as TSV and XLSX.
+---
+
+## Optional Preprocessing Utilities
+
+To assist with metadata preparation, we provide optional helper scripts in the [`utils/`](./utils) directory. These are **not required**, but they can help standardize and automate input formatting prior to running the metadata generation pipeline.
+
+---
+
+### `0B_strip_cram_and_bam_paths.py`
+
+This script strips full file paths in your sample tables down to just the base file name (e.g., `gs://bucket/data/sample.bam` → `sample.bam`).  
+It works for columns commonly used in Unaligned and Aligned reads inputs, such as:
+
+- `bam_path`
+- `bam_index_path`
+- `cram_path`
+- `cram_index_path`
+
+**Input:**  
+A tab-delimited `.tsv` file with at least the following columns:
+
+| Column            | Description                            |
+|-------------------|----------------------------------------|
+| `sample_id`       | Unique ID for the sample (any format)  |
+| `bam_path`        | Full BAM path (e.g. `gs://...`)        |
+| `bam_index_path`  | Full BAM index path (optional)         |
+| `cram_path`       | Full CRAM path (e.g. `gs://...`)       |
+| `cram_index_path` | Full CRAM index path (optional)        |
+
+**Output:**  
+A `.tsv` with the same structure, but with only the file names in the above fields.
+
+**Example:**
+
+**Input:**
+
+| sample_id | bam_path                          | cram_path                          |
+|-----------|-----------------------------------|------------------------------------|
+| SMHT001   | gs://bucket/data/SMHT001.bam      | gs://bucket/data/SMHT001.cram      |
+
+**Output:**
+
+| sample_id | bam_path     | cram_path     |
+|-----------|--------------|---------------|
+| SMHT001   | SMHT001.bam  | SMHT001.cram  |
+
+**Usage:**
+```bash
+python utils/0B_strip_cram_and_bam_paths.py <input_tsv> <output_tsv>
 
 ---
 
@@ -66,7 +115,16 @@ Additional columns (e.g. `input_bam`, `cram_path`) are used for unaligned/aligne
 - Must include:
   - `tissue_identifier_code` (e.g. `3S`)  
   - `corresponding_tissue`   (e.g. `Heart`)
+  
+The input_examples/ folder includes sample TSVs that demonstrate the expected format for:
 
+Donor info files
+
+Short-read, long-read, and RNA sample tables
+
+UBERON tissue mapping files
+
+These examples are intended to help you test the pipeline or structure your own metadata inputs.
 ---
 
 ## Generated Sheets
@@ -189,8 +247,11 @@ metadata-pipeline/
 │   └── generate_aligned_reads_sheet.py
 ├── files/                      # Reference and input data files
 │   └── tissue_uberon_identifiers.tsv
-├── requirements.txt            # Required Python packages
-└── README.md                   # This documentation
+├── input_examples/                    # Example of input files
+│   ├── Short-read, long-read, and RNA sample tables
+│   ├── Donor info files
+│   └── UBERON tissue mapping files
+├── README.md                   # This documentation
 ```
 
 ---
