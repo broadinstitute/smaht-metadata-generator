@@ -259,6 +259,49 @@ metadata-pipeline/
 ├── requirements.txt            # Required Python packages
 └— README.md                   # This documentation
 ```
+# Other Branches:
+## `full_sheet` Branch
+
+The `full_sheet` branch includes support for generating **all required metadata sheets**, including empty placeholder sheets for those not yet populated. This ensures the final combined Excel workbook aligns fully with the SMaHT metadata submission template, even if some sheets are left blank for now.
+
+You can switch to this branch using:
+
+```bash
+git checkout full_sheet
+```
+This branch introduces two additional required inputs:
+
+- overview-path: Path to the overview guidelines Excel file
+
+- template-path: Path to the submission template with all expected sheet names and order
+
+## Example Usage
+```bash
+python scripts/generate_metadata.py \
+  --overview-path files/overview_guidelines.xlsx \
+  --template-path files/gcc_automated_submission_example_v1.4.0.xlsx \
+  --donor-info files/donor_info.tsv \
+  --inputs files/filtered_long_read.tsv files/SMAHT001_collaborator_short_read_stripped.tsv files/SMAHT022_collaborator_short_read_stripped.tsv \
+  --uberon files/tissue_uberon_identifiers.tsv \
+  --submitter-prefix BROAD \
+  --out-donor-tsv output/donor_sheet.tsv \
+  --out-donor-xlsx output/donor_sheet.xlsx \
+  --out-tissue-tsv output/tissue_sheet.tsv \
+  --out-tissue-xlsx output/tissue_sheet.xlsx \
+  --out-tissuesample-tsv output/tissuesample_sheet.tsv \
+  --out-tissuesample-xlsx output/tissuesample_sheet.xlsx \
+  --out-analyte-tsv output/analyte_sheet.tsv \
+  --out-analyte-xlsx output/analyte_sheet.xlsx \
+  --out-library-tsv output/library_sheet.tsv \
+  --out-library-xlsx output/library_sheet.xlsx \
+  --out-fileset-tsv output/fileset_sheet.tsv \
+  --out-fileset-xlsx output/fileset_sheet.xlsx \
+  --out-unalignedreads-tsv output/unalignedreads_sheet.tsv \
+  --out-unalignedreads-xlsx output/unalignedreads_sheet.xlsx \
+  --out-alignedreads-tsv output/alignedreads_sheet.tsv \
+  --out-alignedreads-xlsx output/alignedreads_sheet.xlsx \
+  --out-combined-xlsx output/combined_metadata.xlsx
+```
 
 ---
 
