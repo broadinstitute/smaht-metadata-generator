@@ -283,6 +283,9 @@ def main():
         description="Generate metadata sheets including Donor, Tissue, TissueSample, "
                     "Analyte, Library, FileSet, UnalignedReads, and AlignedReads."
     )
+    parser.add_argument("--overview-path", required=True, help="Path to overview_guidelines.xlsx")
+    parser.add_argument("--template-path", required=True, help="Path to GCC template xlsx")
+
     parser.add_argument(
         "--donor-info", required=True,
         help="Path to the donor information TSV (with columns: donor, gender, age, etc.)"
@@ -299,6 +302,11 @@ def main():
         "--uberon", required=True,
         help="Path to the tissue_uberon_identifiers TSV mapping core codes to tissue names"
     )
+    parser.add_argument(
+    "--sequencing-info", required=False,
+    help="Optional TSV file with sequencing metadata (submitted_id, read_type, etc.)"
+    )
+
     parser.add_argument(
         "--submitter-prefix", default="BROAD",
         help="Prefix to use in all submitted_id fields (default: BROAD)"
@@ -389,19 +397,57 @@ def main():
     generate_fileset_sheet(args)
     generate_unalignedreads_sheet(args)
     generate_alignedreads_sheet(args)
+
+    ordered_sheets = [
+        "(Overview Guidelines)",
+        "(Donor)",
+        "(Tissue)",
+        "TissueSample",
+        "CellLine",
+        "CellCulture",
+        "CellCultureMixture",
+        "CellCultureSample",
+        "CellSample",
+        "Analyte",
+        "AnalytePreparation",
+        "PreparationKit",
+        "Treatment",
+        "Library",
+        "LibraryPreparation",
+        "Sequencing",
+        "FileSet",
+        "UnalignedReads",
+        "AlignedReads",
+        "VariantCalls",
+        "SupplementaryFile",
+        "Software"
+    ]
+
+    sheet_data = {
+        "(Overview Guidelines)": pd.read_excel(args.overview_path, sheet_name=0),
+        "(Donor)": pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str}),
+        "(Tissue)": pd.read_excel(args.out_tissue_xlsx),
+        "TissueSample": pd.read_excel(args.out_tissuesample_xlsx),
+        "Analyte": pd.read_excel(args.out_analyte_xlsx),
+        "Library": pd.read_excel(args.out_library_xlsx),
+        "FileSet": pd.read_excel(args.out_fileset_xlsx),
+        "UnalignedReads": pd.read_excel(args.out_unalignedreads_xlsx),
+        "AlignedReads": pd.read_excel(args.out_alignedreads_xlsx)
+    }
+
+    sheet_data["(Donor)"]["tpc_submitted"] = sheet_data["(Donor)"]["tpc_submitted"].str.capitalize()
+
     with pd.ExcelWriter(args.out_combined_xlsx, engine="openpyxl") as writer:
-        df_donor = pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str})
-        df_donor["tpc_submitted"] = df_donor["tpc_submitted"].str.capitalize()
-        df_donor.to_excel(writer, sheet_name="(Donor)", index=False)
-        #pd.read_excel(args.out_donor_xlsx)        .to_excel(writer, sheet_name="Donor",           index=False)
-        pd.read_excel(args.out_tissue_xlsx)       .to_excel(writer, sheet_name="(Tissue)",          index=False)
-        pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
-        pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)
-        pd.read_excel(args.out_library_xlsx)      .to_excel(writer, sheet_name="Library",         index=False)
-        pd.read_excel(args.out_fileset_xlsx)      .to_excel(writer, sheet_name="FileSet",         index=False)
-        pd.read_excel(args.out_unalignedreads_xlsx).to_excel(writer, sheet_name="UnalignedReads",   index=False)
-        pd.read_excel(args.out_alignedreads_xlsx) .to_excel(writer, sheet_name="AlignedReads",     index=False)
+        for sheet_name in ordered_sheets:
+            if sheet_name in sheet_data:
+                sheet_data[sheet_name].to_excel(writer, sheet_name=sheet_name, index=False)
+            else:
+                empty_df = pd.read_excel(args.template_path, sheet_name=sheet_name, nrows=0)
+                empty_df.to_excel(writer, sheet_name=sheet_name, index=False)
+
     print(f"✅ The combined metadata Excel is saved to: {args.out_combined_xlsx}")
+
+
 
 if __name__ == "__main__":
     main()
