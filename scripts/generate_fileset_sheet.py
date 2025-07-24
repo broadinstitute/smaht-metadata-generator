@@ -1,6 +1,30 @@
 import pandas as pd
 
 # --- HELPER FUNCTIONS ---
+def normalize_tissue_label(tissue_label):
+    """Normalize specific tissue labels by replacing underscores with hyphens."""
+    if tissue_label is None:
+        return tissue_label
+    
+    # Define specific tissues to normalize
+    tissue_replacements = {
+        'TEMPORAL_LOBE': 'TEMPORAL-LOBE',
+        'FRONTAL_LOBE': 'FRONTAL-LOBE',
+        'L_HIPPOCAMPUS': 'L-HIPPOCAMPUS',
+        'R_HIPPOCAMPUS': 'R-HIPPOCAMPUS'
+    }
+    
+    # First apply standard formatting
+    formatted = tissue_label.replace(" ", "-").upper()
+    
+    # Then apply specific replacements
+    for old_name, new_name in tissue_replacements.items():
+        if formatted == old_name:
+            return new_name
+    
+    return formatted
+
+
 def get_library_type(identifier):
     """Return standardized library type based on source_type or analyte_id patterns."""
     if identifier in {"WGS_ILLUMINA", "WGS_PACBIO", "RNA_WATCHMAKER", "RNA_TRUSEQ"}:
@@ -22,7 +46,7 @@ def infer_sequencing(library_type):
     if "PACBIO" in library_type:
         return "BROAD_SEQUENCING_PACBIO_20000BP_12X"
     elif "WATCHMAKER" in library_type:
-        return "BROAD_SEQUENCING_NOVASEQX_10B_150BP_100M"
+        return "BROAD_SEQUENCING_NOVASEQX_10B_145BP_100M"
     elif "TRUSEQ" in library_type:
         return "BROAD_SEQUENCING_NOVASEQ6000_150BP_75M"
     else:
@@ -69,6 +93,30 @@ def generate_fileset_sheet(args):
 import pandas as pd
 
 # --- HELPER FUNCTIONS ---
+def normalize_tissue_label(tissue_label):
+    """Normalize specific tissue labels by replacing underscores with hyphens."""
+    if tissue_label is None:
+        return tissue_label
+    
+    # Define specific tissues to normalize
+    tissue_replacements = {
+        'TEMPORAL_LOBE': 'TEMPORAL-LOBE',
+        'FRONTAL_LOBE': 'FRONTAL-LOBE',
+        'L_HIPPOCAMPUS': 'L-HIPPOCAMPUS',
+        'R_HIPPOCAMPUS': 'R-HIPPOCAMPUS'
+    }
+    
+    # First apply standard formatting
+    formatted = tissue_label.replace(" ", "-").upper()
+    
+    # Then apply specific replacements
+    for old_name, new_name in tissue_replacements.items():
+        if formatted == old_name:
+            return new_name
+    
+    return formatted
+
+
 def get_library_type(identifier):
     """Return standardized library type based on source_type or analyte_id patterns."""
     if identifier in {"WGS_ILLUMINA", "WGS_PACBIO", "RNA_WATCHMAKER", "RNA_TRUSEQ"}:
@@ -118,7 +166,6 @@ def generate_fileset_sheet(args):
             df["source_type"] = "UNKNOWN"
         all_input.append(df[["donor_id", "collaborator_sample_id", "sample_id", "source_type"]])
 
-    # RNA input
     # Optional RNA input
     if getattr(args, "rna", None):
         rna_df = pd.read_csv(args.rna, sep="\t")
@@ -150,7 +197,7 @@ def generate_fileset_sheet(args):
 
         # derive core and tissue_label just like UnalignedReads
         core = collaborator_id.split("-")[1]
-        tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
+        tissue_label = normalize_tissue_label(tissue_map.get(core, core))
 
         # determine library type (WGS_ILLUMINA, WGS_PACBIO, etc.)
         lib_type = get_library_type(source_type)

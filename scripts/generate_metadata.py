@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-generate_metadata.py
+generate_metadata.py (Modified)
 
 Author: Shadi Zaheri
 Date:   2025-04-25
 Description:
     Orchestration script for generating Donor, Tissue, TissueSample,
     Analyte, Library, FileSet, UnalignedReads and AlignedReads sheets.
+    
+Modified to have explicit optional arguments for DNA sequencing types.
 """
 __author__ = "Shadi Zaheri"
-__version__ = "1.0"
+__version__ = "1.1"
 
 import pandas as pd
 import argparse
@@ -19,14 +21,38 @@ from generate_unaligned_reads_sheet import generate_unalignedreads_sheet
 from generate_aligned_reads_sheet import generate_alignedreads_sheet
 
 
+def normalize_tissue_label(tissue_label):
+    """Normalize specific tissue labels by replacing underscores with hyphens."""
+    if tissue_label is None:
+        return tissue_label
+    
+    # Define specific tissues to normalize
+    tissue_replacements = {
+        'TEMPORAL_LOBE': 'TEMPORAL-LOBE',
+        'FRONTAL_LOBE': 'FRONTAL-LOBE',
+        'L_HIPPOCAMPUS': 'L-HIPPOCAMPUS',
+        'R_HIPPOCAMPUS': 'R-HIPPOCAMPUS'
+    }
+    
+    # First apply standard formatting
+    formatted = tissue_label.replace(" ", "-").upper()
+    
+    # Then apply specific replacements
+    for old_name, new_name in tissue_replacements.items():
+        if formatted == old_name:
+            return new_name
+    
+    return formatted
+
+
 def format_tissue_submitted_id(donor_id, core_code, tissue_label):
-    return f"NDRI_TISSUE_{core_code.upper()}-{tissue_label.replace(' ', '-').upper()}"
+    normalized_tissue = normalize_tissue_label(tissue_label)
+    return f"NDRI_TISSUE_{core_code.upper()}-{normalized_tissue}"
 
 def format_tissuesample_submitted_id(prefix, donor_id, tissue_label, collaborator_sample_id, category):
     sample_suffix = collaborator_sample_id.split("-")[-1]
-    return (
-        f"{prefix}_TISSUE-SAMPLE_{donor_id}_{tissue_label}_{sample_suffix}_{category}"
-    ).replace(" ", "-").upper()
+    normalized_tissue = normalize_tissue_label(tissue_label)
+    return f"{prefix}_TISSUE-SAMPLE_{donor_id}_{normalized_tissue}_{sample_suffix}_{category}".upper()
 
 
 def format_analyte_id(prefix, label, sample_id):
@@ -37,7 +63,7 @@ def infer_category(tissue_label):
         return "Liquid" if "BLOOD" in tissue_label.upper() else "Core"
     return "Core"
 
-def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
+def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv, uberon_tsv,
                               out_donor_tsv, out_donor_xlsx,
                               out_tissue_tsv, out_tissue_xlsx,
                               out_tissuesample_tsv, out_tissuesample_xlsx,
@@ -55,6 +81,14 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
         )
     )
 
+    # Collect all input files with their types
+    input_files = []
+    if sr_dna_files:
+        for f in sr_dna_files:
+            input_files.append((f, "short_read"))
+    if lr_dna_files:
+        for f in lr_dna_files:
+            input_files.append((f, "long_read"))
 
     # --- DONOR SHEET ---
     donor_df = pd.read_csv(donor_info_tsv, sep="\t")
@@ -74,18 +108,28 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
     # --- TISSUE SHEET ---
     uberon_df = pd.read_csv(uberon_tsv, sep="\t")
     df_list = []
-    for f in input_files:
+    
+    # Process DNA files
+    for f, file_type in input_files:
         df = pd.read_csv(f, sep="\t")
         df = df.dropna(subset=["collaborator_sample_id", "donor_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
         df["donor_id"] = df["donor_id"].astype(str)
         df_list.append(df)
+    
+    # Process RNA files if provided
     if rna_tsv:
-        df_rna = pd.read_csv(rna_tsv, sep="\t")
-        df_rna = df_rna.dropna(subset=["collaborator_sample_id", "donor_id"])
-        df_rna["collaborator_sample_id"] = df_rna["collaborator_sample_id"].astype(str)
-        df_rna["donor_id"] = df_rna["donor_id"].astype(str)
-        df_list.append(df_rna)
+        for rna_file in rna_tsv:
+            df_rna = pd.read_csv(rna_file, sep="\t")
+            df_rna = df_rna.dropna(subset=["collaborator_sample_id", "donor_id"])
+            df_rna["collaborator_sample_id"] = df_rna["collaborator_sample_id"].astype(str)
+            df_rna["donor_id"] = df_rna["donor_id"].astype(str)
+            df_list.append(df_rna)
+
+    # Skip tissue processing if no input files
+    if not df_list:
+        print("❌ No input files provided. At least one of --sr-dna, --lr-dna, or --rna is required.")
+        return
 
     df_all = pd.concat(df_list, ignore_index=True)
     df_all["core_id"] = df_all["collaborator_sample_id"].apply(lambda x: x.split("-")[1])
@@ -147,10 +191,23 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
     print(f"✅ TissueSample sheet saved to: {out_tissuesample_tsv} and {out_tissuesample_xlsx}")
 
     # --- ANALYTE SHEET ---
-    file_labels = {f: "GDNA_LONGREAD" if "long" in f.lower() else "GDNA_SHORTREAD"
-               for f in input_files}
+    file_labels = {}
+    
+    # Label DNA files based on explicit type
+    if sr_dna_files:
+        for f in sr_dna_files:
+            file_labels[f] = "GDNA_SHORTREAD"
+    if lr_dna_files:
+        for f in lr_dna_files:
+            file_labels[f] = "GDNA_LONGREAD"
+    
+    # Label RNA files
     if rna_tsv:
-        file_labels[rna_tsv] = "RNA_WATCHMAKER"
+        for rna_file in rna_tsv:
+            if "truseq" in rna_file.lower():
+                file_labels[rna_file] = "RNA_TRUSEQ"
+            else:
+                file_labels[rna_file] = "RNA_WATCHMAKER"
 
     analyte_records = []
     for f, label in file_labels.items():
@@ -171,7 +228,7 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
 
             donor_part = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
-            tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
+            tissue_label = normalize_tissue_label(tissue_map.get(core, core))
 
             analyte_id = (
                 f"{submitter_prefix}_ANALYTE_"
@@ -207,7 +264,6 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
     analyte_sheet.to_excel(out_analyte_xlsx, index=False)
     print(f"✅ Analyte sheet saved to: {out_analyte_tsv} and {out_analyte_xlsx}")
 
-
     # --- LIBRARY SHEET ---
     analyte_df = analyte_df.copy()
 
@@ -239,9 +295,8 @@ def generate_metadata_sheets(donor_info_tsv, input_files, rna_tsv, uberon_tsv,
         ext_id = row["external_id"]
 
         donor = ext_id.split("-")[0]
-        #tissue_label = analyte_id.split("_")[3]
         core = ext_id.split("-")[1]  # Extract core from collaborator_sample_id
-        tissue_label = tissue_map.get(core, core).replace(" ", "-").upper()
+        tissue_label = normalize_tissue_label(tissue_map.get(core, core))
         library_type = get_library_type(analyte_id)
         assay = infer_assay(library_type)
 
@@ -288,12 +343,16 @@ def main():
         help="Path to the donor information TSV (with columns: donor, gender, age, etc.)"
     )
     parser.add_argument(
-        "--inputs", nargs="+", required=True,
-        help="List of input TSVs for short- and long-read samples (collaborator_sample_id, donor_id, etc.)"
+        "--sr-dna", nargs="*", default=None,
+        help="Short-read DNA sequencing TSV files (optional)"
     )
     parser.add_argument(
-        "--rna", required=False,
-        help="Path to the RNA input TSV (filtered_rna_watchmaker or filtered_rna_truseq)"
+        "--lr-dna", nargs="*", default=None,
+        help="Long-read DNA sequencing TSV files (optional)"
+    )
+    parser.add_argument(
+        "--rna", nargs="*", default=None,
+        help="RNA sequencing TSV files (filtered_rna_watchmaker or filtered_rna_truseq, optional)"
     )
     parser.add_argument(
         "--uberon", required=True,
@@ -372,10 +431,14 @@ def main():
         help="Where to write the combined Excel workbook containing all sheets"
     )
 
-
     args = parser.parse_args()
+    
+    # Check that at least one sequencing type is provided
+    if not any([args.sr_dna, args.lr_dna, args.rna]):
+        parser.error("At least one of --sr-dna, --lr-dna, or --rna must be provided")
+    
     generate_metadata_sheets(
-        args.donor_info, args.inputs, args.rna, args.uberon,
+        args.donor_info, args.sr_dna, args.lr_dna, args.rna, args.uberon,
         args.out_donor_tsv, args.out_donor_xlsx,
         args.out_tissue_tsv, args.out_tissue_xlsx,
         args.out_tissuesample_tsv, args.out_tissuesample_xlsx,
@@ -386,14 +449,34 @@ def main():
         args.out_unalignedreads_tsv, args.out_unalignedreads_xlsx,
         args.out_alignedreads_tsv, args.out_alignedreads_xlsx
     )
-    generate_fileset_sheet(args)
-    generate_unalignedreads_sheet(args)
-    generate_alignedreads_sheet(args)
+    
+    # Create a temporary args object for the helper functions
+    # They expect an 'inputs' attribute, so we'll create it from our new structure
+    helper_args = argparse.Namespace()
+    for attr, value in vars(args).items():
+        setattr(helper_args, attr, value)
+    
+    # Create the inputs list for helper functions
+    helper_args.inputs = []
+    if args.sr_dna:
+        helper_args.inputs.extend(args.sr_dna)
+    if args.lr_dna:
+        helper_args.inputs.extend(args.lr_dna)
+    
+    # For backward compatibility with helper functions that expect single RNA file,
+    # we'll pass the first RNA file if multiple are provided
+    if args.rna:
+        helper_args.rna = args.rna[0]  # Use first RNA file for helpers
+        # DO NOT add RNA files to inputs - they are processed separately
+    
+    generate_fileset_sheet(helper_args)
+    generate_unalignedreads_sheet(helper_args)
+    generate_alignedreads_sheet(helper_args)
+    
     with pd.ExcelWriter(args.out_combined_xlsx, engine="openpyxl") as writer:
         df_donor = pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str})
         df_donor["tpc_submitted"] = df_donor["tpc_submitted"].str.capitalize()
         df_donor.to_excel(writer, sheet_name="(Donor)", index=False)
-        #pd.read_excel(args.out_donor_xlsx)        .to_excel(writer, sheet_name="Donor",           index=False)
         pd.read_excel(args.out_tissue_xlsx)       .to_excel(writer, sheet_name="(Tissue)",          index=False)
         pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
         pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)

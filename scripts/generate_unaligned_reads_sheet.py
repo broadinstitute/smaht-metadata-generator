@@ -2,6 +2,30 @@ import argparse
 import pandas as pd
 
 # --- HELPER FUNCTIONS ---
+def normalize_tissue_label(tissue_label):
+    """Normalize specific tissue labels by replacing underscores with hyphens."""
+    if tissue_label is None:
+        return tissue_label
+    
+    # Define specific tissues to normalize
+    tissue_replacements = {
+        'TEMPORAL_LOBE': 'TEMPORAL-LOBE',
+        'FRONTAL_LOBE': 'FRONTAL-LOBE',
+        'L_HIPPOCAMPUS': 'L-HIPPOCAMPUS',
+        'R_HIPPOCAMPUS': 'R-HIPPOCAMPUS'
+    }
+    
+    # First apply standard formatting
+    formatted = tissue_label.replace(" ", "-").upper()
+    
+    # Then apply specific replacements
+    for old_name, new_name in tissue_replacements.items():
+        if formatted == old_name:
+            return new_name
+    
+    return formatted
+
+
 def get_library_type(analyte_id):
     if "SHORTREAD" in analyte_id:
         return "WGS_ILLUMINA"
@@ -26,14 +50,22 @@ def infer_sequencing(library_type):
 def get_unalignedread_type():
     return "WGS_PACBIO_SMRT"
 
-def generate_fileset_sheet(args):
-    # This remains the same as before
-    pass
-
 def generate_unalignedreads_sheet(args):
+    # Define required columns first
+    required_cols = [
+        "submitted_id", "filename", "submitted_md5sum", "data_category", "data_type", "n50",
+        "flow_cell_barcode", "flow_cell_lane", "description", "read_pair_number", "file_format",
+        "file_sets", "derived_from", "external_quality_metrics", "paired_with", "software"
+    ]
+    
     longread_file = next((f for f in args.inputs if "long" in f.lower()), None)
     if not longread_file:
-        print("❌ No long read file found in inputs")
+        print("❌ No long read file found in inputs - creating empty UnalignedReads sheet")
+        # CREATE EMPTY FILES
+        empty_df = pd.DataFrame(columns=required_cols)
+        empty_df.to_csv(args.out_unalignedreads_tsv, sep="\t", index=False)
+        empty_df.to_excel(args.out_unalignedreads_xlsx, index=False)
+        print(f"✅ Empty UnalignedReads sheet saved to: {args.out_unalignedreads_tsv} and {args.out_unalignedreads_xlsx}")
         return
 
     long_df = pd.read_csv(longread_file, sep="\t")
@@ -53,7 +85,7 @@ def generate_unalignedreads_sheet(args):
         sample_id = row["collaborator_sample_id"]
         donor = sample_id.split("-")[0]
         core_id = sample_id.split("-")[1]
-        tissue_label = tissue_map.get(core_id, core_id).replace(" ", "-").upper()
+        tissue_label = normalize_tissue_label(tissue_map.get(core_id, core_id))
 
         sample_seen[sample_id] = sample_seen.get(sample_id, 0) + 1
         smrt_suffix = f"SMRT{sample_seen[sample_id]}"
@@ -71,11 +103,8 @@ def generate_unalignedreads_sheet(args):
         })
 
     unaligned_df = pd.DataFrame(unaligned_records)
-    required_cols = [
-        "submitted_id", "filename", "submitted_md5sum", "data_category", "data_type", "n50",
-        "flow_cell_barcode", "flow_cell_lane", "description", "read_pair_number", "file_format",
-        "file_sets", "derived_from", "external_quality_metrics", "paired_with", "software"
-    ]
+    
+    # Add missing columns
     for col in required_cols:
         if col not in unaligned_df.columns:
             unaligned_df[col] = ""
