@@ -224,18 +224,30 @@ python generate_metadata.py \
 
 ## Examples
 
-1. Generate all sheets for a project and combine:
+## Examples
+
+1. Generate all sheets for a project with multiple sequencing types:
    ```bash
    python generate_metadata.py \
      --donor-info donor_info.tsv \
-     --inputs filtered_long.tsv short_read_stripped.tsv \
+     --sr-dna short_read_batch1.tsv short_read_batch2.tsv \
+     --lr-dna filtered_long.tsv \
      --rna filtered_rna_watchmaker.tsv \
      --uberon tissue_uberon_identifiers.tsv \
      [all output flags…] \
      --out-combined-xlsx project_metadata.xlsx
    ```
+2. Process only RNA data:
+ ```bash
+python generate_metadata.py \
+  --donor-info donor_info.tsv \
+  --rna rna_truseq.tsv rna_watchmaker.tsv \
+  --uberon tissue_uberon_identifiers.tsv \
+  [all output flags…] \
+  --out-combined-xlsx rna_only_metadata.xlsx
+```
 
-2. Inspect only the Library sheet:
+3. Inspect only the Library sheet:
    ```bash
    python generate_metadata.py … \
      --out-library-xlsx library_only.xlsx
