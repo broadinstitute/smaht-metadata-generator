@@ -182,7 +182,8 @@ pip install -r requirements.txt
 ```bash
 python generate_metadata.py \
   --donor-info donor_info.tsv \
-  --inputs short.tsv long.tsv \
+  --sr-dna short_read1.tsv short_read2.tsv \
+  --lr-dna long_read.tsv \
   --rna rna_watchmaker.tsv \
   --uberon tissue_uberon_identifiers.tsv \
   --submitter-prefix BROAD \
