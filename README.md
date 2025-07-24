@@ -85,6 +85,17 @@ python utils/0B_strip_cram_and_bam_paths.py <input_tsv> <output_tsv>
 The pipeline infers these from file names or analyte IDs.
 
 ---
+## Tissue Label Normalization
+
+The pipeline automatically normalizes specific brain tissue labels for consistency:
+- `TEMPORAL_LOBE` → `TEMPORAL-LOBE`
+- `FRONTAL_LOBE` → `FRONTAL-LOBE`
+- `L_HIPPOCAMPUS` → `L-HIPPOCAMPUS`
+- `R_HIPPOCAMPUS` → `R-HIPPOCAMPUS`
+
+All other tissue names retain their original formatting (spaces converted to hyphens, uppercase).
+
+---
 
 ## Input Files
 
@@ -96,13 +107,16 @@ The pipeline infers these from file names or analyte IDs.
   - `gender` (`M`/`F`)  
   - `age` (integer)
 
-### Sample TSVs (Short/Long/RNA)
+### Sample TSVs (Short Read DNA/Long Read DNA/RNA)
 
-- Passed via `--inputs` (one or more) and `--rna` (optional, use if RNA samples are included).  Filenames should reflect their type:
-  - Short read tables: filename contains `short_read` or similar
-  - Long read tables: filename contains `long_read` or `long`
-  - RNA tables: filename contains `watchmaker` or `truseq`
+- **Short-read DNA**: Passed via `--sr-dna` (accepts multiple files)
+- **Long-read DNA**: Passed via `--lr-dna` (accepts multiple files)  
+- **RNA**: Passed via `--rna` (accepts multiple files)
 
+At least one of these options must be provided. Filenames should reflect their type:
+- Short read tables: filename should contain `short_read` or similar
+- Long read tables: filename should contain `long_read` or `long`
+- RNA tables: filename should contain `watchmaker` or `truseq`
 Each must include at least:
 
 | Column                 | Description                                  |
@@ -277,12 +291,16 @@ This branch introduces two additional required inputs:
 - template-path: Path to the submission template with all expected sheet names and order
 
 ## Example Usage
+1. Generate all sheets for a project with multiple sequencing types:
+
 ```bash
 python scripts/generate_metadata.py \
   --overview-path files/overview_guidelines.xlsx \
   --template-path files/gcc_automated_submission_example_v1.4.0.xlsx \
   --donor-info files/donor_info.tsv \
-  --inputs files/filtered_long_read.tsv files/SMAHT001_collaborator_short_read_stripped.tsv files/SMAHT022_collaborator_short_read_stripped.tsv \
+  --sr-dna short_read_batch1.tsv short_read_batch2.tsv \
+  --lr-dna filtered_long.tsv \
+  --rna filtered_rna_watchmaker.tsv \
   --uberon files/tissue_uberon_identifiers.tsv \
   --submitter-prefix BROAD \
   --out-donor-tsv output/donor_sheet.tsv \
@@ -302,6 +320,33 @@ python scripts/generate_metadata.py \
   --out-alignedreads-tsv output/alignedreads_sheet.tsv \
   --out-alignedreads-xlsx output/alignedreads_sheet.xlsx \
   --out-combined-xlsx output/combined_metadata.xlsx
+```
+
+2. Process only RNA data:
+
+```bash
+ python scripts/generate_metadata.py \
+  --donor-info files/donor_info.tsv \
+  --uberon files/tissue_uberon_identifiers.tsv \
+  --rna files/filtered_rna_watchmaker.tsv \
+  --submitter-prefix BROAD \
+  --out-donor-tsv output/donor.tsv \
+  --out-donor-xlsx output/donor.xlsx \
+  --out-tissue-tsv output/tissue.tsv \
+  --out-tissue-xlsx output/tissue.xlsx \
+  --out-tissuesample-tsv output/tissuesample.tsv \
+  --out-tissuesample-xlsx output/tissuesample.xlsx \
+  --out-analyte-tsv output/analyte.tsv \
+  --out-analyte-xlsx output/analyte.xlsx \
+  --out-library-tsv output/library.tsv \
+  --out-library-xlsx output/library.xlsx \
+  --out-fileset-tsv output/fileset.tsv \
+  --out-fileset-xlsx output/fileset.xlsx \
+  --out-unalignedreads-tsv output/unalignedreads.tsv \
+  --out-unalignedreads-xlsx output/unalignedreads.xlsx \
+  --out-alignedreads-tsv output/alignedreads.tsv \
+  --out-alignedreads-xlsx output/alignedreads.xlsx \
+  --out-combined-xlsx output/all_metadata.xlsx
 ```
 
 ---
