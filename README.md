@@ -140,6 +140,48 @@ The `input_examples/` folder includes sample TSVs that demonstrate the expected 
 - UBERON tissue mapping files
 
 These examples are intended to help you test the pipeline or structure your own metadata inputs.
+#### Updating Tissue Identifiers
+The metadata generation system relies on `tissue_uberon_identifiers.tsv` to map tissue identifier codes to standardized tissue names and UBERON IDs. If you encounter samples with tissue codes that are not included in this mapping file (e.g., code `3Y`), you'll need to update the file with the correct information.
+
+**How to Update Missing Tissue Identifiers**
+
+1. **Identify the missing tissue code** from your sample data
+2. **Look up the correct tissue information** using the SMaHT database links below
+3. **Update** `tissue_uberon_identifiers.tsv` with the proper format
+
+***Required Information Format***
+
+For each tissue identifier, you need:
+- **Tissue identifier code** (e.g., `3Y`)
+- **Corresponding tissue name** (standardized format)
+- **UBERON ID** (ontology identifier)
+
+#### SMaHT Database Resources
+
+Use these example links to find the correct tissue information:
+
+#### Sample-Specific Searches
+- [SMHT022 Donor Samples](https://data.smaht.org/search/?donor.display_title=SMHT022&submission_centers.display_title=NDRI+TPC&type=SampleSource)
+- [SMHT005 Donor Samples](https://data.smaht.org/search/?donor.display_title=SMHT005&submission_centers.display_title=NDRI+TPC&type=SampleSource)
+**Search Strategy:** If you can't find your tissue of interest from these donors, systematically search other donors by replacing SMHT022 with other donor IDs (e.g., `SMHT001`, `SMHT003`, etc.) until you locate the tissue identifier you need.
+
+#### Ontology Reference
+- [UBERON Ontology Terms](https://data.smaht.org/search/?type=OntologyTerm) - Browse all available tissue ontology terms
+
+**Example Update Process**
+
+1. **Find missing code**: Sample has tissue code `3Y` but it's not in `tissue_uberon_identifiers.tsv`
+2. **Search SMaHT database**: Use the donor-specific links above to find what tissue `3Y` represents
+3. **Add to mapping file**: Update `tissue_uberon_identifiers.tsv` with the new row:
+   ```
+   tissue_identifier_code    corresponding_tissue    uberon_id
+   3Y                       HEART_VENTRICLE         UBERON:0002084
+   ```
+
+#### Notes
+- Always verify the tissue name formatting matches existing entries in the file
+- Ensure UBERON IDs are accurate and follow the `UBERON:xxxxxxx` format
+- Test your updated mapping file before running the full metadata generation
 
 ---
 
