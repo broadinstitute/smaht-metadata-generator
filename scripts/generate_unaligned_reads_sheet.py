@@ -58,21 +58,16 @@ def generate_unalignedreads_sheet(args):
         "file_sets", "derived_from", "external_quality_metrics", "paired_with", "software"
     ]
     
-    longread_file = next((f for f in args.inputs if "long" in f.lower()), None)
-    if not longread_file:
-        print("❌ No long read file found in inputs - creating empty UnalignedReads sheet")
+    # FIXED: Find ALL long-read files instead of just the first one
+    longread_files = [f for f in args.inputs if "long" in f.lower()]
+    if not longread_files:
+        print("❌ No long read files found in inputs - creating empty UnalignedReads sheet")
         # CREATE EMPTY FILES
         empty_df = pd.DataFrame(columns=required_cols)
         empty_df.to_csv(args.out_unalignedreads_tsv, sep="\t", index=False)
         empty_df.to_excel(args.out_unalignedreads_xlsx, index=False)
         print(f"✅ Empty UnalignedReads sheet saved to: {args.out_unalignedreads_tsv} and {args.out_unalignedreads_xlsx}")
         return
-
-    long_df = pd.read_csv(longread_file, sep="\t")
-    long_df = long_df.dropna(subset=["collaborator_sample_id", "input_bam"])
-
-    long_df["collaborator_sample_id"] = long_df["collaborator_sample_id"].astype(str)
-    long_df["input_bam"] = long_df["input_bam"].astype(str)
 
     # UBERON info
     uberon_df = pd.read_csv(args.uberon, sep="\t")
@@ -81,26 +76,39 @@ def generate_unalignedreads_sheet(args):
     sample_seen = {}
     unaligned_records = []
 
-    for _, row in long_df.iterrows():
-        sample_id = row["collaborator_sample_id"]
-        donor = sample_id.split("-")[0]
-        core_id = sample_id.split("-")[1]
-        tissue_label = normalize_tissue_label(tissue_map.get(core_id, core_id))
+    # FIXED: Process ALL long-read files
+    for longread_file in longread_files:
+        print(f"📁 Processing long-read file: {longread_file}")
+        
+        long_df = pd.read_csv(longread_file, sep="\t")
+        long_df = long_df.dropna(subset=["collaborator_sample_id", "input_bam"])
 
-        sample_seen[sample_id] = sample_seen.get(sample_id, 0) + 1
-        smrt_suffix = f"SMRT{sample_seen[sample_id]}"
+        long_df["collaborator_sample_id"] = long_df["collaborator_sample_id"].astype(str)
+        long_df["input_bam"] = long_df["input_bam"].astype(str)
 
-        submitted_id = f"{args.submitter_prefix}_UNALIGNED-READS_{donor}_{tissue_label}_{get_unalignedread_type()}_{smrt_suffix}".upper()
+        for _, row in long_df.iterrows():
+            sample_id = row["collaborator_sample_id"]
+            donor = sample_id.split("-")[0]
+            core_id = sample_id.split("-")[1]
+            tissue_label = normalize_tissue_label(tissue_map.get(core_id, core_id))
 
-        file_set_id = f"{args.submitter_prefix}_FILE-SET_{donor}_{tissue_label}_WGS_PACBIO_{sample_seen[sample_id]}".upper()
+            # Count occurrences across ALL long-read files for this sample
+            sample_seen[sample_id] = sample_seen.get(sample_id, 0) + 1
+            smrt_suffix = f"SMRT{sample_seen[sample_id]}"
 
-        unaligned_records.append({
-            "submitted_id": submitted_id,
-            "filename": row["input_bam"],
-            "description": sample_id,
-            "file_format": "bam",
-            "file_sets": file_set_id
-        })
+            submitted_id = f"{args.submitter_prefix}_UNALIGNED-READS_{donor}_{tissue_label}_{get_unalignedread_type()}_{smrt_suffix}".upper()
+
+            file_set_id = f"{args.submitter_prefix}_FILE-SET_{donor}_{tissue_label}_WGS_PACBIO_{sample_seen[sample_id]}".upper()
+
+            unaligned_records.append({
+                "submitted_id": submitted_id,
+                "filename": row["input_bam"],
+                "description": sample_id,
+                "file_format": "bam",
+                "file_sets": file_set_id
+            })
+
+    print(f"📊 Processed {len(unaligned_records)} unaligned read records from {len(longread_files)} long-read files")
 
     unaligned_df = pd.DataFrame(unaligned_records)
     
