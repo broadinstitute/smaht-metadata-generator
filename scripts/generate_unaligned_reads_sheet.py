@@ -39,13 +39,13 @@ def get_library_type(analyte_id):
 
 def infer_sequencing(library_type):
     if "PACBIO" in library_type:
-        return "BROAD_SEQUENCING_PACBIO_20000BP_12X"
+        return "BROAD_SEQUENCING_PACBIO_15000BP_20X"
     elif "WATCHMAKER" in library_type:
-        return "BROAD_SEQUENCING_NOVASEQX_10B_150BP_100M"
+        return "BROAD_SEQUENCING_NOVASEQXPLUS_25B_145BP_100M"
     elif "TRUSEQ" in library_type:
         return "BROAD_SEQUENCING_NOVASEQ6000_150BP_75M"
     else:
-        return "BROAD_SEQUENCING_NOVASEQX_25B_150BP_160X"
+        return "BROAD_SEQUENCING_NOVASEQXPLUS_25B_150BP_160X"
 
 def get_unalignedread_type():
     return "WGS_PACBIO_SMRT"
