@@ -80,7 +80,10 @@ python utils/0A_strip_cram_and_bam_paths.py --input <input_tsv> --output <output
 - **WGS_PACBIO**  (long read)  
 - **RNA_WATCHMAKER** (RNA total)  
 - **RNA_TRUSEQ**     (RNA mRNA)  
-- **CODEC** (specialized sequencing with three protocols: DDBTP, DRV1, DRV2)
+- **CODEC** (specialized sequencing with one protocol: DDBTP)
+-   NOTE: On August 15, 2025, notified by the CODEC group at the Broad that for 
+    production samples, only DDBTP protocol is provided (originally CODEC had 
+    three protocols: DDBTP, DRV1, DRV2).
 
 The pipeline infers these from file names or analyte IDs.
 
@@ -226,7 +229,7 @@ When using `generate_codec_metadata.py`, additional sheets are generated:
 
 | Sheet Name           | CLI Flag                      | Description                           |
 |---------------------|-------------------------------|---------------------------------------|
-| LibraryPreparation  | `--out-library-preparation-*` | CODEC protocol details (DDBTP, DRV1, DRV2) |
+| LibraryPreparation  | `--out-library-preparation-*` | CODEC protocol details (DDBTP) |
 | Sequencing          | `--out-sequencing-*`          | Sequencing parameters                 |
 | VariantCalls        | `--out-variantcalls-*`        | VCF files and variant metadata       |
 | Software            | `--out-software-*`            | Analysis pipeline information         |
