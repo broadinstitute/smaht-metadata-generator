@@ -9,7 +9,7 @@ This repository provides a **pipeline** for generating standardized metadata she
 
 ## Overview
 
-This pipeline reads in: donor metadata, sample tables for short read, long read, and RNA inputs, plus a UBERON mapping file.  It then produces eight metadata sheets with properly formatted `submitted_id` values:
+This pipeline reads in: donor metadata, sample tables for short read, long read, and RNA inputs, plus a UBERON mapping file.  It then produces eight metadata sheets with properly formatted `submitted_id` values:
 
 - **Donor**: one row per donor
 - **Tissue**: one row per core tissue code
@@ -22,65 +22,65 @@ This pipeline reads in: donor metadata, sample tables for short read, long r
 
 These are output both as TSV and XLSX.
 
+**For CODEC sequencing workflows**, this repository also includes a specialized script (`generate_codec_metadata.py`) that produces additional metadata sheets specific to CODEC protocols, including LibraryPreparation, Sequencing, VariantCalls, and Software sheets.
+
 ---
 
 ## Optional Preprocessing Utilities
 
-To assist with metadata preparation, we provide optional helper scripts in the [`utils/`](./utils) directory. These are **not required**, but they can help standardize and automate input formatting prior to running the metadata generation pipeline.
+To assist with metadata preparation, we provide an optional helper script in the [`utils/`](./utils) directory. This is **not required**, but it can help standardize and automate input formatting prior to running the metadata generation pipeline.
 
 ---
 
-### `0B_strip_cram_and_bam_paths.py`
+### `0A_strip_cram_and_bam_paths.py`
 
 This script strips full file paths in your sample tables down to just the base file name (e.g., `gs://bucket/data/sample.bam` → `sample.bam`).  
-It works for columns commonly used in Unaligned and Aligned reads inputs, such as:
 
-- `bam_path`
-- `bam_index_path`
+**It works for both regular sequencing and CODEC workflows**, handling columns such as:
+
+**Regular sequencing:**
 - `cram_path`
-- `cram_index_path`
+- `input_bam`
+
+**CODEC sequencing:**
+- `MolConsensusBAM`
+- `RAW_BAM`
+- `vcf`
 
 **Input:**  
-A tab-delimited `.tsv` file with at least the following columns:
-
-| Column            | Description                            |
-|-------------------|----------------------------------------|
-| `sample_id`       | Unique ID for the sample (any format)  |
-| `bam_path`        | Full BAM path (e.g. `gs://...`)        |
-| `bam_index_path`  | Full BAM index path (optional)         |
-| `cram_path`       | Full CRAM path (e.g. `gs://...`)       |
-| `cram_index_path` | Full CRAM index path (optional)        |
+A tab-delimited `.tsv` file with file path columns.
 
 **Output:**  
-A `.tsv` with the same structure, but with only the file names in the above fields.
+A `.tsv` with the same structure, but with only the file names in the path fields.
 
 **Example:**
 
 **Input:**
 
-| sample_id | bam_path                          | cram_path                          |
-|-----------|-----------------------------------|------------------------------------|
-| SMHT001   | gs://bucket/data/SMHT001.bam      | gs://bucket/data/SMHT001.cram      |
+| sample_id | RAW_BAM                         | MolConsensusBAM                   |
+|-----------|-----------------------------------|-----------------------------------|
+| SMHT001   | gs://bucket/data/SMHT001.raw.aligned.bam      | gs://bucket/data/SMHT001.mol_consensus.aligned.bam  |
 
 **Output:**
 
-| sample_id | bam_path     | cram_path     |
-|-----------|--------------|---------------|
-| SMHT001   | SMHT001.bam  | SMHT001.cram  |
+| sample_id | input_bam     | MolConsensusBAM   |
+|-----------|---------------|-------------------|
+| SMHT001   | SMHT001.raw.aligned.bam  | SMHT001.mol_consensus.aligned.bam   |
 
 **Usage:**
 ```bash
-python utils/0B_strip_cram_and_bam_paths.py <input_tsv> <output_tsv>
+python utils/0A_strip_cram_and_bam_paths.py --input <input_tsv> --output <output_tsv>
 ```
 
 ---
 
 ## Supported Sequencing Technologies
 
-- **WGS_ILLUMINA** (short read)  
-- **WGS_PACBIO**  (long read)  
+- **WGS_ILLUMINA** (short read)  
+- **WGS_PACBIO**  (long read)  
 - **RNA_WATCHMAKER** (RNA total)  
 - **RNA_TRUSEQ**     (RNA mRNA)  
+- **CODEC** (specialized sequencing with three protocols: DDBTP, DRV1, DRV2)
 
 The pipeline infers these from file names or analyte IDs.
 
@@ -104,7 +104,7 @@ All other tissue names retain their original formatting (spaces converted to hyp
 - Provided via `--donor-info`  
 - Must include at least columns:  
   - `donor` (unique donor code, e.g. `SMHT001`)  
-  - `gender` (`M`/`F`)  
+  - `gender` (`Male`/`Female`)  
   - `age` (integer)
 
 ### Sample TSVs (Short Read DNA/Long Read DNA/RNA)
@@ -121,10 +121,27 @@ Each must include at least:
 
 | Column                 | Description                                  |
 |------------------------|----------------------------------------------|
-| `collaborator_sample_id` | `{donor}-{core}-{suffix}` (e.g. `SMHT001-3S-001A1`) |
+| `collaborator_sample_id` | `{donor}-{tissue}-{core}` (e.g. `SMHT001-3S-001A1`) |
 | `donor_id`               | Matching donor code (e.g. `SMHT001`)           |
 
 Additional columns (e.g. `input_bam`, `cram_path`) are used for unaligned/aligned sheets.
+
+### CODEC Sample TSVs
+
+For **CODEC workflows**, use the specialized `generate_codec_metadata.py` script with:
+
+- **CODEC files**: Passed via `--codec` (accepts multiple files)
+
+CODEC files must include at least:
+
+| Column                 | Description                                  |
+|------------------------|----------------------------------------------|
+| `sample_id`            | Unique sample identifier                     |
+| `collaborator_sample_id` | `{donor}-{tissue}-{core}` (e.g. `SMHT001-3S-001A1`) |
+| `donor_id`             | Matching donor code (e.g. `SMHT001`)        |
+| `MolConsensusBAM`      | Path to processed duplex BAM file           |
+| `RAW_BAM`              | Path to raw alignment BAM file              |
+| `vcf`                  | Path to variant calls VCF file              |
 
 ### UBERON Mapping TSV
 
@@ -137,6 +154,7 @@ The `input_examples/` folder includes sample TSVs that demonstrate the expected 
 
 - Donor info files
 - Short-read, long-read, and RNA sample tables
+- CODEC sample tables
 - UBERON tissue mapping files
 
 These examples are intended to help you test the pipeline or structure your own metadata inputs.
@@ -174,8 +192,9 @@ Use these example links to find the correct tissue information:
 2. **Search SMaHT database**: Use the donor-specific links above to find what tissue `3Y` represents
 3. **Add to mapping file**: Update `tissue_uberon_identifiers.tsv` with the new row:
    ```
-   tissue_identifier_code    corresponding_tissue    uberon_id
-   3Y                       HEART_VENTRICLE         UBERON:0002084
+    tissue_identifier_code	corresponding_tissue	uberon_id
+    3Y	L_OVARY	UBERON:0002119
+    1D	LUNG	UBERON:0008952
    ```
 
 #### Notes
@@ -199,7 +218,18 @@ Each sheet is written as both TSV and XLSX. The CLI flags control their paths.
 | FileSet         | `--out-fileset-*`      | Grouped libraries                       |
 | UnalignedReads  | `--out-unalignedreads-*` | Raw BAM files                         |
 | AlignedReads    | `--out-alignedreads-*`  | Sorted CRAM files                      |
-| Combined Excel  | `--out-combined-xlsx`  | Multi sheet workbook of all above      |
+| Combined Excel  | `--out-combined-xlsx`  | Multi sheet workbook of all above      |
+
+### Additional CODEC-Specific Sheets
+
+When using `generate_codec_metadata.py`, additional sheets are generated:
+
+| Sheet Name           | CLI Flag                      | Description                           |
+|---------------------|-------------------------------|---------------------------------------|
+| LibraryPreparation  | `--out-library-preparation-*` | CODEC protocol details (DDBTP, DRV1, DRV2) |
+| Sequencing          | `--out-sequencing-*`          | Sequencing parameters                 |
+| VariantCalls        | `--out-variantcalls-*`        | VCF files and variant metadata       |
+| Software            | `--out-software-*`            | Analysis pipeline information         |
 
 ---
 
@@ -235,6 +265,8 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Regular Sequencing (Short Read DNA, Long Read DNA, Short Read RNA)
+
 ```bash
 python generate_metadata.py \
   --donor-info donor_info.tsv \
@@ -262,11 +294,53 @@ python generate_metadata.py \
   --out-combined-xlsx all_metadata.xlsx
 ```
 
+### CODEC Sequencing
+
+For CODEC workflows, use the specialized script:
+
+```bash
+python generate_codec_metadata.py \
+    --donor-info donor_information.tsv \
+    --codec trimmed_codec.tsv \
+    --uberon tissue_uberon_identifiers.tsv \
+    --submitter-prefix BROAD \
+    --out-donor-tsv output/donor.tsv \
+    --out-donor-xlsx output/donor.xlsx \
+    --out-tissue-tsv output/tissue.tsv \
+    --out-tissue-xlsx output/tissue.xlsx \
+    --out-tissuesample-tsv output/tissuesample.tsv \
+    --out-tissuesample-xlsx output/tissuesample.xlsx \
+    --out-analyte-tsv output/analyte.tsv \
+    --out-analyte-xlsx output/analyte.xlsx \
+    --out-library-tsv output/library.tsv \
+    --out-library-xlsx output/library.xlsx \
+    --out-library-preparation-tsv output/library_preparation.tsv \
+    --out-library-preparation-xlsx output/library_preparation.xlsx \
+    --out-sequencing-tsv output/sequencing.tsv \
+    --out-sequencing-xlsx output/sequencing.xlsx \
+    --out-fileset-tsv output/fileset.tsv \
+    --out-fileset-xlsx output/fileset.xlsx \
+    --out-unalignedreads-tsv output/unalignedreads.tsv \
+    --out-unalignedreads-xlsx output/unalignedreads.xlsx \
+    --out-alignedreads-tsv output/alignedreads.tsv \
+    --out-alignedreads-xlsx output/alignedreads.xlsx \
+    --out-variantcalls-tsv output/variantcalls.tsv \
+    --out-variantcalls-xlsx output/variantcalls.xlsx \
+    --out-software-tsv output/software.tsv \
+    --out-software-xlsx output/software.xlsx \
+    --out-combined-xlsx output/codec_metadata_combined.xlsx
+```
+
+**Recommended:** Create an output directory for organization:
+```bash
+mkdir output
+```
+
 ---
 
 ## Examples
 
-## Examples
+### Regular Sequencing Examples
 
 1. Generate all sheets for a project with multiple sequencing types:
    ```bash
@@ -295,12 +369,39 @@ python generate_metadata.py \
      --out-library-xlsx library_only.xlsx
    ```
 
+### CODEC Examples
+
+1. Complete CODEC workflow with preprocessing:
+   ```bash
+   # Step 1: Preprocess to trim file paths
+   python utils/0A_strip_cram_and_bam_paths.py \
+     --input raw_codec_data.tsv \
+     --output trimmed_codec.tsv
+   
+   # Step 2: Generate CODEC metadata
+   mkdir output
+   python generate_codec_metadata.py \
+     --donor-info donor_information.tsv \
+     --codec trimmed_codec.tsv \
+     --uberon tissue_uberon_identifiers.tsv \
+     --submitter-prefix BROAD \
+     [all CODEC output flags as shown above] \
+     --out-combined-xlsx output/codec_metadata_combined.xlsx
+   ```
+
+2. Multiple CODEC input files:
+   ```bash
+   python generate_codec_metadata.py \
+     --donor-info donor_info.tsv \
+     --codec batch1_codec.tsv batch2_codec.tsv \
+     --uberon tissue_uberon_identifiers.tsv \
+     [remaining flags...]
+   ```
+
 ---
 
 ## Future Development
 
-- **CODEC support**: Add support for CODEC sequencing workflows, including custom sheet templates for CODEC-specific libraries and metadata fields.  
-- **VariantFiles sheets**: Generate VARIANTCALLS metadata sheets (`VariantFiles`) with fields like `submitted_id`, `data_category`, `data_type`, `filename`, `submitted_md5sum`, `file_format`, and `software`.
 - **Quality metrics**: Incorporate additional QC metrics (e.g. coverage, duplication rates) into the library and file-level sheets.  
 - **Automation & CI**: Integrate with GitHub Actions or a scheduler to auto-run whenever new raw data files appear.  
 
@@ -311,17 +412,19 @@ python generate_metadata.py \
 ```
 metadata-pipeline/
 ├── scripts/                    # Python scripts for generating metadata sheets
-│   ├— generate_metadata.py
+│   ├— generate_metadata.py          # Regular sequencing workflows
+│   ├— generate_codec_metadata.py    # CODEC sequencing workflows
 │   ├— generate_fileset_sheet.py
 │   ├— generate_unaligned_reads_sheet.py
 │   └— generate_aligned_reads_sheet.py
 ├── utils/                      # Optional helper scripts for input preprocessing
-│   └— 0B_strip_cram_and_bam_paths.py
+│   └— 0A_strip_cram_and_bam_paths.py  # For both regular and CODEC files
 ├── input_examples/             # Sample input TSVs to test or guide formatting
 │   ├— donor_info.tsv
 │   ├— short_read_example.tsv
 │   ├— long_read_example.tsv
 │   ├— rna_watchmaker_example.tsv
+│   ├— codec_example.tsv             # CODEC sample format
 │   └— tissue_uberon_identifiers.tsv
 ├── files/                      # Reference and input data files
 │   └— tissue_uberon_identifiers.tsv
@@ -408,4 +511,3 @@ python scripts/generate_metadata.py \
 ## License
 
 **License:** Broad Institute of MIT and Harvard
-
