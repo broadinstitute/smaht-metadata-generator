@@ -9,12 +9,12 @@ Description:
     Generates Donor, Tissue, TissueSample, Analyte, Library, FileSet,
     AlignedReads, VariantCalls, and Software sheets specifically for CODEC data.
     
-    CODEC samples use three protocols: DDBTP, DRV1, DRV2
+    CODEC samples use DDBTP protocol only
     Each sample generates:
-    - 3 Libraries (one per protocol)
-    - 3 FileSets (one per protocol) 
-    - 6 AlignedReads (RAW + PROCESSED per protocol)
-    - 3 VariantCalls (one per protocol)
+    - 1 Library (DDBTP protocol)
+    - 1 FileSet (DDBTP protocol) 
+    - 2 AlignedReads (RAW + PROCESSED for DDBTP)
+    - 1 VariantCall (DDBTP protocol)
     - UnalignedReads sheet stays empty
 """
 
@@ -208,8 +208,8 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     analyte_sheet.to_excel(out_analyte_xlsx, index=False)
     print(f"✅ Analyte sheet saved to: {out_analyte_tsv} and {out_analyte_xlsx}")
 
-    # --- LIBRARY SHEET (CODEC-specific: 3 libraries per sample) ---
-    codec_protocols = ["DDBTP", "DRV1", "DRV2"]
+    # --- LIBRARY SHEET (CODEC-specific: DDBTP only) ---
+    codec_protocols = ["DDBTP"]
     library_records = []
     lib_counter = {}  # Track counts for each donor-tissue-protocol combination
 
@@ -257,7 +257,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     library_df.to_excel(out_library_xlsx, index=False)
     print(f"✅ Library sheet saved to: {out_library_tsv} and {out_library_xlsx}")
 
-    # --- FILESET SHEET (CODEC-specific) ---
+    # --- FILESET SHEET (CODEC-specific: DDBTP only, with correct column order) ---
     fileset_records = []
     fileset_counter = {}  # Track counts for each donor-tissue-protocol combination
     
@@ -280,12 +280,16 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
             fileset_records.append({
                 "submitted_id": fileset_id,
                 "description": "",
+                "submitter_comments": "",
                 "libraries": lib_id,
                 "sequencing": f"{submitter_prefix}_SEQUENCING_CODEC".upper(),
                 "samples": ""
             })
 
+    # Create DataFrame with correct column order: submitted_id, description, submitter_comments, libraries, sequencing, samples
+    fileset_columns = ["submitted_id", "description", "submitter_comments", "libraries", "sequencing", "samples"]
     fileset_df = pd.DataFrame(fileset_records)
+    fileset_df = fileset_df[fileset_columns]
     fileset_df.to_csv(out_fileset_tsv, sep="\t", index=False)
     fileset_df.to_excel(out_fileset_xlsx, index=False)
     print(f"✅ FileSet sheet saved to: {out_fileset_tsv} and {out_fileset_xlsx}")
@@ -301,7 +305,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     empty_unaligned_df.to_excel(out_unalignedreads_xlsx, index=False)
     print(f"✅ Empty UnalignedReads sheet saved to: {out_unalignedreads_tsv} and {out_unalignedreads_xlsx}")
 
-    # --- ALIGNED READS SHEET (CODEC-specific: RAW + PROCESSED per protocol) ---
+    # --- ALIGNED READS SHEET (CODEC-specific: RAW + PROCESSED for DDBTP only) ---
     aligned_records = []
     aligned_counter = {}  # Track counts for each donor-tissue-protocol combination
     
@@ -384,7 +388,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     aligned_df.to_excel(out_alignedreads_xlsx, index=False)
     print(f"✅ AlignedReads sheet saved to: {out_alignedreads_tsv} and {out_alignedreads_xlsx}")
 
-    # --- VARIANT CALLS SHEET (CODEC-specific) ---
+    # --- VARIANT CALLS SHEET (CODEC-specific: DDBTP only) ---
     variantcalls_records = []
     variant_counter = {}  # Track counts for each donor-tissue-protocol combination
     
@@ -534,41 +538,11 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     sequencing_df.to_excel(out_sequencing_xlsx, index=False)
     print(f"✅ Sequencing sheet saved to: {out_sequencing_tsv} and {out_sequencing_xlsx}")
 
-    # --- LIBRARY PREPARATION SHEET (CODEC-specific) ---
+    # --- LIBRARY PREPARATION SHEET (CODEC-specific: DDBTP only) ---
     library_preparation_records = [
         {
             "submitted_id": f"{submitter_prefix}_LIBRARY-PREPARATION_CODEC_DDBTP".upper(),
             "description": "ddBTP End Repair is an end repair strategy that utilizes ddBTPs to optimize DNA fragment ends for ligation while preventing unintended polymerase extension and exonuclease degradation.",
-            "adapter_inclusion_method": "",
-            "amplification_method": "",
-            "fragmentation_method": "",
-            "insert_selection_method": "",
-            "enzymes": "",
-            "rna_seq_protocol": "",
-            "size_selection_method": "",
-            "strand": "",
-            "trim_adapter_sequence": "",
-            "preparation_kits": "",
-            "treatments": ""
-        },
-        {
-            "submitted_id": f"{submitter_prefix}_LIBRARY-PREPARATION_CODEC_DRV1".upper(),
-            "description": "Duplex-Repair V1, an end repair strategy aimed at improving sequencing accuracy, particularly in damaged DNA samples. Duplex-Repair V1 minimizes strand resynthesis, thereby preserving the original DNA sequence integrity",
-            "adapter_inclusion_method": "",
-            "amplification_method": "",
-            "fragmentation_method": "",
-            "insert_selection_method": "",
-            "enzymes": "",
-            "rna_seq_protocol": "",
-            "size_selection_method": "",
-            "strand": "",
-            "trim_adapter_sequence": "",
-            "preparation_kits": "",
-            "treatments": ""
-        },
-        {
-            "submitted_id": f"{submitter_prefix}_LIBRARY-PREPARATION_CODEC_DRV2".upper(),
-            "description": "Duplex-Repair V2, an end repair strategy built upon Duplex-Repair V1, introduces additional refinements to further enhance error correction.",
             "adapter_inclusion_method": "",
             "amplification_method": "",
             "fragmentation_method": "",
