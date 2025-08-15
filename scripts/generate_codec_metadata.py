@@ -511,7 +511,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
             "target_coverage": 2,
             "target_read_count": "",
             "target_monomer_length": "",
-            "sequencer": "illumina_novaseq_x",
+            "sequencer": "illumina_novaseq_x_plus",
             "preparation_kits": ""
         }
     ]
