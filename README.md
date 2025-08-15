@@ -18,7 +18,7 @@ This pipeline reads in: donor metadata, sample tables for short read, long read,
 - **Library**: sequencing libraries
 - **FileSet**: grouping of libraries
 - **UnalignedReads**: raw read files (BAM)
-- **AlignedReads**: alignment outputs (CRAM)
+- **AlignedReads**: alignment outputs (CRAM or BAM)
 
 These are output both as TSV and XLSX.
 
