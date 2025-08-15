@@ -3,11 +3,15 @@
 generate_codec_metadata.py
 
 Author: Shadi Zaheri
-Date: 2025-08-14
+Date: 2025-08-15
 Description:
     Specialized metadata generator for CODEC samples.
     Generates Donor, Tissue, TissueSample, Analyte, Library, FileSet,
     AlignedReads, VariantCalls, and Software sheets specifically for CODEC data.
+    
+    NOTE: On August 15, 2025, notified by the CODEC group at the Broad that for 
+    production samples, only DDBTP protocol is provided (originally CODEC had 
+    three protocols: DDBTP, DRV1, DRV2).
     
     CODEC samples use DDBTP protocol only
     Each sample generates:
