@@ -9,17 +9,11 @@ Description:
     Generates Donor, Tissue, TissueSample, Analyte, Library, FileSet,
     AlignedReads, VariantCalls, and Software sheets specifically for CODEC data.
     
-    NOTE: On August 15, 2025, notified by the CODEC group at the Broad that for 
-    production samples, only DDBTP protocol is provided (originally CODEC had 
-    three protocols: DDBTP, DRV1, DRV2).
-    
-    CODEC samples use DDBTP protocol only
-    Each sample generates:
-    - 1 Library (DDBTP protocol)
-    - 1 FileSet (DDBTP protocol) 
-    - 2 AlignedReads (RAW + PROCESSED for DDBTP)
-    - 1 VariantCall (DDBTP protocol)
-    - UnalignedReads sheet stays empty
+    FIXES APPLIED:
+    - Correct tissue label extraction preserving compound names (L-HIPPOCAMPUS, etc.)
+    - Include sample suffixes in IDs to ensure uniqueness
+    - Maintain 1:1:1:1 hierarchical relationships
+    - Preserve selective tissue normalization (only 4 special tissues get hyphens)
 """
 
 import pandas as pd
@@ -51,8 +45,8 @@ def normalize_tissue_label(tissue_label):
 
 
 def format_tissue_submitted_id(donor_id, core_code, tissue_label):
-    # Don't normalize here - let individual sheets normalize as needed
-    return f"NDRI_TISSUE_{core_code.upper()}-{tissue_label}"
+    normalized_tissue = normalize_tissue_label(tissue_label)
+    return f"NDRI_TISSUE_{core_code.upper()}-{normalized_tissue}"
 
 
 def format_tissuesample_submitted_id(prefix, donor_id, tissue_label, collaborator_sample_id, category):
@@ -116,12 +110,14 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     df_all["core_id"] = df_all["collaborator_sample_id"].apply(lambda x: x.split("-")[1])
     df_all["external_id"] = df_all["collaborator_sample_id"].apply(lambda x: "-".join(x.split("-")[:2]))
 
-    # --- TISSUE SHEET (same as regular) ---
+    # --- TISSUE SHEET (FIXED: consistent normalization) ---
     tissue_df = df_all[["collaborator_sample_id", "external_id", "core_id", "donor_id"]].drop_duplicates()
     tissue_df = tissue_df.merge(uberon_df, how="left", left_on="core_id", right_on="tissue_identifier_code")
     tissue_df["donor"] = tissue_df["donor_id"].apply(lambda x: f"NDRI_DONOR_{x}")
+    
+    # FIXED: Apply normalization consistently
     tissue_df["submitted_id"] = tissue_df.apply(
-        lambda row: format_tissue_submitted_id(row["donor_id"], row["external_id"], normalize_tissue_label(row["corresponding_tissue"]))
+        lambda row: f"NDRI_TISSUE_{row['external_id']}-{normalize_tissue_label(row['corresponding_tissue'])}"
         if pd.notnull(row["corresponding_tissue"]) else f"NDRI_TISSUE_{row['external_id']}",
         axis=1
     )
@@ -140,10 +136,27 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     tissue_sheet.to_excel(out_tissue_xlsx, index=False)
     print(f"✅ Tissue sheet saved to: {out_tissue_tsv} and {out_tissue_xlsx}")
 
-    # --- TISSUE SAMPLE SHEET (same as regular) ---
+    # --- TISSUE SAMPLE SHEET (FIXED: correct tissue label extraction) ---
     ext_to_sample_source = dict(zip(tissue_sheet["external_id"], tissue_sheet["submitted_id"]))
-    ext_to_label = {row["external_id"]: row["submitted_id"].split("-")[-1] 
-                   for _, row in tissue_sheet.iterrows()}
+    
+    # FIXED: Correct tissue label extraction that preserves compound names
+    ext_to_label = {}
+    for _, row in tissue_sheet.iterrows():
+        tissue_id = row["submitted_id"]  # e.g., "NDRI_TISSUE_SMHT001-001A1-L-HIPPOCAMPUS"
+        if tissue_id.startswith("NDRI_TISSUE_"):
+            # Remove prefix to get "SMHT001-001A1-L-HIPPOCAMPUS"
+            remainder = tissue_id.replace("NDRI_TISSUE_", "")
+            # Split on "-" and take everything after the second part
+            parts = remainder.split("-")
+            if len(parts) >= 3:  # donor-core-tissue format
+                tissue_label = "-".join(parts[2:])  # Join remaining parts for compound tissues
+            else:
+                tissue_label = parts[-1]  # Fallback to last part
+            ext_to_label[row["external_id"]] = tissue_label
+        else:
+            # Fallback for unexpected formats
+            ext_to_label[row["external_id"]] = tissue_id.split("-")[-1]
+
     ext_to_donor = {row["external_id"]: row["submitted_id"].split("_TISSUE_")[1].split("-")[0]
                    for _, row in tissue_sheet.iterrows()}
 
@@ -170,25 +183,27 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     tissuesample_sheet.to_excel(out_tissuesample_xlsx, index=False)
     print(f"✅ TissueSample sheet saved to: {out_tissuesample_tsv} and {out_tissuesample_xlsx}")
 
-    # --- ANALYTE SHEET (same as regular, but CODEC uses GDNA_SHORTREAD) ---
+    # --- ANALYTE SHEET (FIXED: include sample suffix for uniqueness) ---
     analyte_records = []
-    for sample_id in df_all["collaborator_sample_id"]:
-        ts_match = df_all[df_all["collaborator_sample_id"] == sample_id]
-        if ts_match.empty:
-            continue
 
+    for _, ts_row in tissuesample_sheet.iterrows():
+        tissue_sample_id = ts_row["submitted_id"]
+        sample_id = ts_row["external_id"]
+        
         donor_part = sample_id.split("-")[0]
-        core = sample_id.split("-")[1]
+        core = sample_id.split("-")[1] 
+        sample_suffix = sample_id.split("-")[-1]  # e.g., "001A1"
         tissue_label = normalize_tissue_label(tissue_map.get(core, core))
 
-        analyte_id = f"{submitter_prefix}_ANALYTE_{donor_part}_{tissue_label}_GDNA_SHORTREAD".upper()
+        # FIXED: Include sample suffix to ensure uniqueness
+        analyte_id = f"{submitter_prefix}_ANALYTE_{donor_part}_{tissue_label}_{sample_suffix}_GDNA_SHORTREAD".upper()
 
         analyte_records.append({
             "submitted_id": analyte_id,
-            "molecule": "DNA",
-            "molecule_detail": "Total DNA",
+            "molecule": "DNA", 
+            "molecule_detail": "Total DNA", 
             "external_id": sample_id,
-            "samples": ts_match["submitted_id"].values[0]
+            "samples": tissue_sample_id
         })
 
     analyte_df = pd.DataFrame(analyte_records)
@@ -212,33 +227,28 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     analyte_sheet.to_excel(out_analyte_xlsx, index=False)
     print(f"✅ Analyte sheet saved to: {out_analyte_tsv} and {out_analyte_xlsx}")
 
-    # --- LIBRARY SHEET (CODEC-specific: DDBTP only) ---
+    # --- LIBRARY SHEET (FIXED: use sample suffixes, remove counter logic) ---
     codec_protocols = ["DDBTP"]
     library_records = []
-    lib_counter = {}  # Track counts for each donor-tissue-protocol combination
 
-    for _, row in analyte_df.iterrows():
-        analyte_id = row["submitted_id"]
-        ext_id = row["external_id"]
-
-        donor = ext_id.split("-")[0]
-        core = ext_id.split("-")[1]
+    for _, analyte_row in analyte_df.iterrows():
+        analyte_id = analyte_row["submitted_id"]
+        sample_id = analyte_row["external_id"]
+        
+        donor = sample_id.split("-")[0]
+        core = sample_id.split("-")[1]
+        sample_suffix = sample_id.split("-")[-1]
         tissue_label = normalize_tissue_label(tissue_map.get(core, core))
-
-        # Generate one library per protocol
+        
         for protocol in codec_protocols:
-            # Create unique key for tracking counts
-            lib_key = f"{donor}_{tissue_label}_{protocol}"
-            lib_counter[lib_key] = lib_counter.get(lib_key, 0) + 1
-            
-            # Always include counter (starting from 1, like original approach)
-            lib_id = f"{submitter_prefix}_LIBRARY_CODEC_{donor}_{tissue_label}-{protocol}_{lib_counter[lib_key]}".upper()
+            # FIXED: Include sample suffix for uniqueness - no counter needed
+            lib_id = f"{submitter_prefix}_LIBRARY_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
             lib_prep_id = f"{submitter_prefix}_LIBRARY-PREPARATION_CODEC_{protocol}".upper()
 
             library_records.append({
                 "submitted_id": lib_id,
                 "analytes": analyte_id,
-                "assay": "codec",
+                "assay": "codec", 
                 "library_preparation": lib_prep_id
             })
 
@@ -261,25 +271,20 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     library_df.to_excel(out_library_xlsx, index=False)
     print(f"✅ Library sheet saved to: {out_library_tsv} and {out_library_xlsx}")
 
-    # --- FILESET SHEET (CODEC-specific: DDBTP only, with correct column order) ---
+    # --- FILESET SHEET (FIXED: align with new library IDs) ---
     fileset_records = []
-    fileset_counter = {}  # Track counts for each donor-tissue-protocol combination
     
-    # Process each analyte to generate filesets that match the libraries
-    for _, row in analyte_df.iterrows():
-        ext_id = row["external_id"]
-        donor = ext_id.split("-")[0]
-        core = ext_id.split("-")[1]
+    for _, analyte_row in analyte_df.iterrows():
+        sample_id = analyte_row["external_id"]
+        donor = sample_id.split("-")[0]
+        core = sample_id.split("-")[1] 
+        sample_suffix = sample_id.split("-")[-1]
         tissue_label = normalize_tissue_label(tissue_map.get(core, core))
         
         for protocol in codec_protocols:
-            # Create unique key for tracking counts
-            fs_key = f"{donor}_{tissue_label}_{protocol}"
-            fileset_counter[fs_key] = fileset_counter.get(fs_key, 0) + 1
-            
-            # Always include counter (starting from 1, like original approach)
-            fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{fileset_counter[fs_key]}".upper()
-            lib_id = f"{submitter_prefix}_LIBRARY_CODEC_{donor}_{tissue_label}-{protocol}_{fileset_counter[fs_key]}".upper()
+            # FIXED: Use sample suffix to match library IDs
+            fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
+            lib_id = f"{submitter_prefix}_LIBRARY_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
             
             fileset_records.append({
                 "submitted_id": fileset_id,
@@ -290,7 +295,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                 "samples": ""
             })
 
-    # Create DataFrame with correct column order: submitted_id, description, submitter_comments, libraries, sequencing, samples
+    # Create DataFrame with correct column order
     fileset_columns = ["submitted_id", "description", "submitter_comments", "libraries", "sequencing", "samples"]
     fileset_df = pd.DataFrame(fileset_records)
     fileset_df = fileset_df[fileset_columns]
@@ -309,9 +314,8 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     empty_unaligned_df.to_excel(out_unalignedreads_xlsx, index=False)
     print(f"✅ Empty UnalignedReads sheet saved to: {out_unalignedreads_tsv} and {out_unalignedreads_xlsx}")
 
-    # --- ALIGNED READS SHEET (CODEC-specific: RAW + PROCESSED for DDBTP only) ---
+    # --- ALIGNED READS SHEET (FIXED: use sample suffixes for consistent linking) ---
     aligned_records = []
-    aligned_counter = {}  # Track counts for each donor-tissue-protocol combination
     
     for codec_file in codec_files:
         df = pd.read_csv(codec_file, sep="\t")
@@ -322,24 +326,21 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
             sample_id = row["collaborator_sample_id"]
             donor = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
+            sample_suffix = sample_id.split("-")[-1]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
             
             for protocol in codec_protocols:
-                # Create unique key for tracking counts
-                aligned_key = f"{donor}_{tissue_label}_{protocol}"
-                aligned_counter[aligned_key] = aligned_counter.get(aligned_key, 0) + 1
-                
-                # Always include counter (starting from 1, like original approach)
-                fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{aligned_counter[aligned_key]}".upper()
+                # FIXED: Use sample suffix to match fileset IDs
+                fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
                 
                 # RAW BAM (from RAW_BAM column)
                 if pd.notna(row.get("RAW_BAM")):
-                    raw_id = f"{submitter_prefix}_ALIGNED-READS_RAW_CODEC-{sample_id}-{protocol}_{aligned_counter[aligned_key]}".upper()
+                    raw_id = f"{submitter_prefix}_ALIGNED-READS_RAW_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
                     aligned_records.append({
                         "submitted_id": raw_id,
                         "filename": row["RAW_BAM"],
                         "submitted_md5sum": "",
-                        "data_category": "",
+                        "data_category": "Sequencing Reads",
                         "data_type": "",
                         "n50": "",
                         "flow_cell_barcode": "",
@@ -356,12 +357,12 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                 
                 # PROCESSED BAM (from MolConsensusBAM column)
                 if pd.notna(row.get("MolConsensusBAM")):
-                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{aligned_counter[aligned_key]}".upper()
+                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
                     aligned_records.append({
                         "submitted_id": processed_id,
                         "filename": row["MolConsensusBAM"],
                         "submitted_md5sum": "",
-                        "data_category": "",
+                        "data_category": "Consensus Reads",
                         "data_type": "",
                         "n50": "",
                         "flow_cell_barcode": "",
@@ -371,7 +372,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                         "file_format": "bam",
                         "file_sets": fileset_id,
                         "reference_genome": "broad_grch38",
-                        "derived_from": raw_id,
+                        "derived_from": raw_id if pd.notna(row.get("RAW_BAM")) else "",
                         "external_quality_metrics": "",
                         "software": f"{submitter_prefix}_SOFTWARE_CODEC_BAM_PROCESSING_PIPELINE_V1".upper()
                     })
@@ -392,9 +393,8 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     aligned_df.to_excel(out_alignedreads_xlsx, index=False)
     print(f"✅ AlignedReads sheet saved to: {out_alignedreads_tsv} and {out_alignedreads_xlsx}")
 
-    # --- VARIANT CALLS SHEET (CODEC-specific: DDBTP only) ---
+    # --- VARIANT CALLS SHEET (FIXED: use sample suffixes for consistent linking) ---
     variantcalls_records = []
-    variant_counter = {}  # Track counts for each donor-tissue-protocol combination
     
     for codec_file in codec_files:
         df = pd.read_csv(codec_file, sep="\t")
@@ -405,18 +405,15 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
             sample_id = row["collaborator_sample_id"]
             donor = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
+            sample_suffix = sample_id.split("-")[-1]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
             
             for protocol in codec_protocols:
                 if pd.notna(row.get("vcf")):
-                    # Create unique key for tracking counts
-                    variant_key = f"{donor}_{tissue_label}_{protocol}"
-                    variant_counter[variant_key] = variant_counter.get(variant_key, 0) + 1
-                    
-                    # Always include counter (starting from 1, like original approach)
-                    fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{variant_counter[variant_key]}".upper()
-                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{variant_counter[variant_key]}".upper()
-                    variant_id = f"{submitter_prefix}_VARIANT-CALLS_CODEC-{sample_id}-{protocol}_{variant_counter[variant_key]}".upper()
+                    # FIXED: Use sample suffix to match other IDs
+                    fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
+                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
+                    variant_id = f"{submitter_prefix}_VARIANT-CALLS_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
                     
                     variantcalls_records.append({
                         "submitted_id": variant_id,
