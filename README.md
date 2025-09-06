@@ -288,6 +288,8 @@ python generate_metadata.py \
   --out-analyte-xlsx analyte.xlsx \
   --out-library-tsv library.tsv \
   --out-library-xlsx library.xlsx \
+  --out-sequencing-tsv sequencing.tsv \
+  --out-sequencing-xlsx sequencing.xlsx \
   --out-fileset-tsv fileset.tsv \
   --out-fileset-xlsx fileset.xlsx \
   --out-unalignedreads-tsv unaligned.tsv \
