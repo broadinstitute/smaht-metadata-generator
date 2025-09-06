@@ -16,6 +16,7 @@ __version__ = "1.1"
 import pandas as pd
 import argparse
 
+from generate_sequencing_sheet import generate_sequencing_sheet
 from generate_fileset_sheet import generate_fileset_sheet
 from generate_unaligned_reads_sheet import generate_unalignedreads_sheet
 from generate_aligned_reads_sheet import generate_alignedreads_sheet
@@ -69,6 +70,7 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                               out_tissuesample_tsv, out_tissuesample_xlsx,
                               submitter_prefix, out_analyte_tsv, out_analyte_xlsx, 
                               out_library_tsv, out_library_xlsx,
+                              out_sequencing_tsv, out_sequencing_xlsx,
                               out_fileset_tsv, out_fileset_xlsx,
                               out_unalignedreads_tsv, out_unalignedreads_xlsx,
                               out_alignedreads_xlsx, out_alignedreads_tsv):
@@ -332,6 +334,16 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     library_df.to_excel(out_library_xlsx, index=False)
     print(f"✅ Library sheet saved to: {out_library_tsv} and {out_library_xlsx}")
     
+     # --- SEQUENCING SHEET --- (ADD THIS SECTION)
+    # Create temporary args object for sequencing sheet generation
+    seq_args = argparse.Namespace()
+    seq_args.sr_dna = sr_dna_files
+    seq_args.lr_dna = lr_dna_files  
+    seq_args.rna = rna_tsv
+    seq_args.out_sequencing_tsv = out_sequencing_tsv
+    seq_args.out_sequencing_xlsx = out_sequencing_xlsx
+    
+    generate_sequencing_sheet(seq_args)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -403,6 +415,14 @@ def main():
         help="Where to write the Library sheet XLSX"
     )
     parser.add_argument(
+        "--out-sequencing-tsv", required=True,
+        help="Where to write the Sequencing sheet TSV"
+    )
+    parser.add_argument(
+        "--out-sequencing-xlsx", required=True,
+        help="Where to write the Sequencing sheet XLSX"
+    )
+    parser.add_argument(
         "--out-fileset-tsv", required=True,
         help="Where to write the FileSet sheet TSV"
     )
@@ -445,6 +465,7 @@ def main():
         args.submitter_prefix,
         args.out_analyte_tsv, args.out_analyte_xlsx, 
         args.out_library_tsv, args.out_library_xlsx,
+        args.out_sequencing_tsv, args.out_sequencing_xlsx,
         args.out_fileset_tsv, args.out_fileset_xlsx,
         args.out_unalignedreads_tsv, args.out_unalignedreads_xlsx,
         args.out_alignedreads_tsv, args.out_alignedreads_xlsx
@@ -481,6 +502,7 @@ def main():
         pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
         pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)
         pd.read_excel(args.out_library_xlsx)      .to_excel(writer, sheet_name="Library",         index=False)
+        pd.read_excel(args.out_sequencing_xlsx)   .to_excel(writer, sheet_name="Sequencing",      index=False)
         pd.read_excel(args.out_fileset_xlsx)      .to_excel(writer, sheet_name="FileSet",         index=False)
         pd.read_excel(args.out_unalignedreads_xlsx).to_excel(writer, sheet_name="UnalignedReads",   index=False)
         pd.read_excel(args.out_alignedreads_xlsx) .to_excel(writer, sheet_name="AlignedReads",     index=False)

@@ -58,7 +58,7 @@ def generate_alignedreads_sheet(args):
             continue
 
     if not files_with_cram:
-        print("❌ No files with CRAM data found - creating empty AlignedReads sheet")
+        print("⚠ No files with CRAM data found - creating empty AlignedReads sheet")
         # CREATE EMPTY FILES
         empty_df = pd.DataFrame(columns=cols)
         empty_df.to_csv(args.out_alignedreads_tsv, sep="\t", index=False)
@@ -69,6 +69,7 @@ def generate_alignedreads_sheet(args):
     fileset_df = pd.read_csv(args.out_fileset_tsv, sep="\t")
 
     aligned_records = []
+    # CHANGE: Track counts per (donor, tissue_label, lib_type) instead of (sample_id, lib_type)
     align_seen = {}
     fileset_ids = {}
 
@@ -84,8 +85,8 @@ def generate_alignedreads_sheet(args):
             donor, core = sample_id.split("-")[:2]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
 
-            # count repeats
-            key = (sample_id, lib_type)
+            # CHANGE: count repeats per donor-tissue-library combination
+            key = (donor, tissue_label, lib_type)
             align_seen[key] = align_seen.get(key, 0) + 1
             count = align_seen[key]
 
