@@ -296,6 +296,8 @@ python generate_metadata.py \
   --out-unalignedreads-xlsx unaligned.xlsx \
   --out-alignedreads-tsv aligned.tsv \
   --out-alignedreads-xlsx aligned.xlsx \
+  --out-software-tsv output/software.tsv \
+  --out-software-xlsx output/software.xlsx \
   --out-combined-xlsx all_metadata.xlsx
 ```
 
