@@ -162,9 +162,17 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
 
     # --- TISSUE SAMPLE SHEET ---
     ext_to_sample_source = dict(zip(tissue_sheet["external_id"], tissue_sheet["submitted_id"]))
-    ext_to_label = {
-        row["external_id"]: row["submitted_id"].split("-")[-1] for _, row in tissue_sheet.iterrows()
-    }
+    
+    # FIXED: Get tissue labels directly from tissue_map to avoid extraction issues
+    ext_to_label = {}
+    for _, row in df_all[["external_id", "core_id"]].drop_duplicates().iterrows():
+        core_id = row["core_id"]
+        external_id = row["external_id"]
+        # Get tissue label directly from tissue_map and normalize it
+        raw_tissue = tissue_map.get(core_id, core_id)
+        tissue_label = normalize_tissue_label(raw_tissue)
+        ext_to_label[external_id] = tissue_label
+
     ext_to_donor = {
         row["external_id"]: row["submitted_id"].split("_TISSUE_")[1].split("-")[0]
         for _, row in tissue_sheet.iterrows()
