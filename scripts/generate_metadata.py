@@ -73,7 +73,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                               out_sequencing_tsv, out_sequencing_xlsx,
                               out_fileset_tsv, out_fileset_xlsx,
                               out_unalignedreads_tsv, out_unalignedreads_xlsx,
-                              out_alignedreads_xlsx, out_alignedreads_tsv):
+                              out_alignedreads_xlsx, out_alignedreads_tsv,
+                              out_software_tsv, out_software_xlsx):
     
     uberon_df   = pd.read_csv(uberon_tsv, sep="\t")
     tissue_map  = dict(
@@ -353,6 +354,44 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     
     generate_sequencing_sheet(seq_args)
 
+    # --- SOFTWARE SHEET --- (NEW ADDITION)
+    software_records = []
+    
+    # Check if we have short-read DNA or RNA files that would use DRAGEN
+    has_shortread_or_rna = False
+    if sr_dna_files or rna_tsv:
+        has_shortread_or_rna = True
+    
+    if has_shortread_or_rna:
+        software_records.append({
+            "submitted_id": "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8",
+            "category": "Alignment",
+            "title": "DRAGEN",
+            "version": "07.021.604.3.7.8",
+            "description": "",
+            "binary_url": "",
+            "commit": "",
+            "source_url": "",
+            "gpu_architecture": "",
+            "model": "",
+            "modification_tags": ""
+        })
+    
+    software_columns = [
+        "submitted_id", "category", "title", "version", "description", "binary_url",
+        "commit", "source_url", "gpu_architecture", "model", "modification_tags"
+    ]
+    
+    software_df = pd.DataFrame(software_records)
+    if software_df.empty:
+        software_df = pd.DataFrame(columns=software_columns)
+    else:
+        software_df = software_df[software_columns]
+    
+    software_df.to_csv(out_software_tsv, sep="\t", index=False)
+    software_df.to_excel(out_software_xlsx, index=False)
+    print(f"✅ Software sheet saved to: {out_software_tsv} and {out_software_xlsx}")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate metadata sheets including Donor, Tissue, TissueSample, "
@@ -455,6 +494,14 @@ def main():
         help="Where to write the AlignedReads sheet XLSX"
     )
     parser.add_argument(
+        "--out-software-tsv", required=True,
+        help="Where to write the Software sheet TSV"
+    )
+    parser.add_argument(
+        "--out-software-xlsx", required=True,
+        help="Where to write the Software sheet XLSX"
+    )
+    parser.add_argument(
         "--out-combined-xlsx", required=True,
         help="Where to write the combined Excel workbook containing all sheets"
     )
@@ -476,7 +523,8 @@ def main():
         args.out_sequencing_tsv, args.out_sequencing_xlsx,
         args.out_fileset_tsv, args.out_fileset_xlsx,
         args.out_unalignedreads_tsv, args.out_unalignedreads_xlsx,
-        args.out_alignedreads_tsv, args.out_alignedreads_xlsx
+        args.out_alignedreads_tsv, args.out_alignedreads_xlsx,
+        args.out_software_tsv, args.out_software_xlsx
     )
     
     # Create a temporary args object for the helper functions
@@ -514,6 +562,7 @@ def main():
         pd.read_excel(args.out_fileset_xlsx)      .to_excel(writer, sheet_name="FileSet",         index=False)
         pd.read_excel(args.out_unalignedreads_xlsx).to_excel(writer, sheet_name="UnalignedReads",   index=False)
         pd.read_excel(args.out_alignedreads_xlsx) .to_excel(writer, sheet_name="AlignedReads",     index=False)
+        pd.read_excel(args.out_software_xlsx)     .to_excel(writer, sheet_name="Software",        index=False)
     print(f"✅ The combined metadata Excel is saved to: {args.out_combined_xlsx}")
 
 if __name__ == "__main__":
