@@ -220,7 +220,10 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
             else:
                 file_labels[rna_file] = "RNA_WATCHMAKER"
 
+    # ADD COUNTER MECHANISM
+    analyte_counter = {}
     analyte_records = []
+
     for f, label in file_labels.items():
         df = pd.read_csv(f, sep="\t").dropna(subset=["collaborator_sample_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
@@ -241,9 +244,15 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
             core = sample_id.split("-")[1]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
 
+            # CREATE COUNTER KEY AND INCREMENT
+            counter_key = (donor_part, tissue_label, label)
+            analyte_counter[counter_key] = analyte_counter.get(counter_key, 0) + 1
+            counter_suffix = f"_{analyte_counter[counter_key]}"
+            sample_suffix = sample_id.split("-")[-1]
+            # BUILD ANALYTE ID WITH COUNTER
             analyte_id = (
                 f"{submitter_prefix}_ANALYTE_"
-                f"{donor_part}_{tissue_label}_{label}"
+                f"{donor_part}_{tissue_label}_{sample_suffix}_{label}"
             ).upper()
 
             analyte_records.append({
@@ -255,6 +264,7 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
             })
 
     analyte_df = pd.DataFrame(analyte_records)
+
     analyte_columns = [
         "submitted_id", "molecule", "molecule_detail", "external_id", "description", "a260_a280_ratio",
         "average_fragment_size", "concentration", "concentration_unit", "dna_integrity_number",
