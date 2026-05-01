@@ -5,7 +5,7 @@ def generate_sequencing_sheet(args):
     
     # Define all possible columns
     sequencing_columns = [
-        "submitted_id", "read_type", "target_read_length", "flow_cell", 
+        "submitted_id", "read_type", "target_read_length", "additional_notes", "flow_cell", 
         "movie_length", "on_target_rate", "target_coverage", "target_read_count", 
         "target_monomer_length", "sequencer", "preparation_kits"
     ]
@@ -55,7 +55,7 @@ def generate_sequencing_sheet(args):
     if getattr(args, 'rna', None) and args.rna:
         for rna_file in args.rna:
             if "watchmaker" in rna_file.lower():
-                sequencing_id = "BROAD_SEQUENCING_NOVASEQX_25B_145BP_100M"
+                sequencing_id = "BROAD_SEQUENCING_NOVASEQXPLUS_25B_145BP_200M"
                 if sequencing_id not in seen_sequencing_ids:
                     sequencing_records.append({
                         "submitted_id": sequencing_id,
@@ -65,7 +65,7 @@ def generate_sequencing_sheet(args):
                         "movie_length": "",
                         "on_target_rate": "",
                         "target_coverage": "",
-                        "target_read_count": 100000000,
+                        "target_read_count": 200000000,
                         "target_monomer_length": "",
                         "sequencer": "illumina_novaseq_x_plus",
                         "preparation_kits": ""
