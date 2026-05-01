@@ -1,0 +1,2 @@
+submitted_id	description	adapter_inclusion_method	amplification_method	fragmentation_method	insert_selection_method	enzymes	rna_seq_protocol	size_selection_method	strand	trim_adapter_sequence	preparation_kits	treatments
+BROAD_LIBRARY-PREPARATION_WATCHMAKER							Watchmaker		First Stranded		BROAD_PREPARATION-KIT_WATCHMAKER_POLARIS-DEPLETION-KIT | BROAD_PREPARATION-KIT_WATCHMAKER_RNA-LIBRARY-PREP	
