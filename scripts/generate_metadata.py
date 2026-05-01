@@ -409,17 +409,27 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     # --- SOFTWARE SHEET --- (NEW ADDITION)
     software_records = []
     
-    # Check if we have short-read DNA or RNA files that would use DRAGEN
-    has_shortread_or_rna = False
-    if sr_dna_files or rna_tsv:
-        has_shortread_or_rna = True
-    
-    if has_shortread_or_rna:
+    if sr_dna_files:
         software_records.append({
             "submitted_id": "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8",
             "category": "Alignment",
             "title": "DRAGEN",
             "version": "07.021.604.3.7.8",
+            "description": "",
+            "binary_url": "",
+            "commit": "",
+            "source_url": "",
+            "gpu_architecture": "",
+            "model": "",
+            "modification_tags": ""
+        })
+
+    if rna_tsv:
+        software_records.append({
+            "submitted_id": "BROAD_SOFTWARE_DRAGEN_4.2.4-4",
+            "category": "Alignment",
+            "title": "DRAGEN",
+            "version": "4.2.4-4",
             "description": "",
             "binary_url": "",
             "commit": "",
