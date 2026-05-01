@@ -228,7 +228,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
         df = pd.read_csv(f, sep="\t").dropna(subset=["collaborator_sample_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
 
-        for sample_id in df["collaborator_sample_id"]:
+        for _, row in df.iterrows():
+            sample_id = row["collaborator_sample_id"]
             ts_match = df_all[df_all["collaborator_sample_id"] == sample_id]
             if ts_match.empty:
                 continue
@@ -239,6 +240,16 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                 molecule, molecule_detail = "RNA", "mRNA"
             else:
                 molecule, molecule_detail = "DNA", "Total DNA"
+            rna_integrity_number = (
+                row.get("rna_integrity_number", "")
+                if label in {"RNA_WATCHMAKER", "RNA_TRUSEQ"}
+                else ""
+            )
+            rna_integrity_number_instrument = (
+                "Caliper Life Sciences LabChip GX"
+                if label in {"RNA_WATCHMAKER", "RNA_TRUSEQ"}
+                else ""
+            )
 
             donor_part = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
@@ -260,7 +271,9 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                 "molecule":       molecule,
                 "molecule_detail":molecule_detail,
                 "external_id":    sample_id,
-                "samples":        ts_match["submitted_id"].values[0]
+                "samples":        ts_match["submitted_id"].values[0],
+                "rna_integrity_number": rna_integrity_number,
+                "rna_integrity_number_instrument": rna_integrity_number_instrument
             })
 
     analyte_df = pd.DataFrame(analyte_records)
@@ -280,6 +293,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     analyte_sheet["molecule_detail"] = analyte_df["molecule_detail"]
     analyte_sheet["external_id"] = analyte_df["external_id"]
     analyte_sheet["samples"] = analyte_df["samples"]
+    analyte_sheet["rna_integrity_number"] = analyte_df["rna_integrity_number"]
+    analyte_sheet["rna_integrity_number_instrument"] = analyte_df["rna_integrity_number_instrument"]
     analyte_sheet = analyte_sheet.drop_duplicates(subset=["submitted_id"])
     analyte_sheet.to_csv(out_analyte_tsv, sep="\t", index=False)
     analyte_sheet.to_excel(out_analyte_xlsx, index=False)
