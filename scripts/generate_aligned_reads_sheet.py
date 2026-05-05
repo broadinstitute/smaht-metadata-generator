@@ -22,6 +22,12 @@ def normalize_tissue_label(tissue_label):
     return formatted
 
 
+def infer_software(lib_type):
+    if lib_type == "RNA_WATCHMAKER":
+        return "BROAD_SOFTWARE_DRAGEN_4.2.4-4"
+    return "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8"
+
+
 def generate_alignedreads_sheet(args):
     import pandas as pd
 
@@ -127,7 +133,7 @@ def generate_alignedreads_sheet(args):
                 "reference_genome": "broad_grch38",
                 "derived_from": "",
                 "external_quality_metrics": "",
-                "software": "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8"
+                "software": infer_software(lib_type)
             })
 
     aligned_df = pd.DataFrame(aligned_records)

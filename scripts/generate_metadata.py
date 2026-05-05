@@ -15,11 +15,32 @@ __version__ = "1.1"
 
 import pandas as pd
 import argparse
+import shutil
+from pathlib import Path
 
 from generate_sequencing_sheet import generate_sequencing_sheet
 from generate_fileset_sheet import generate_fileset_sheet
 from generate_unaligned_reads_sheet import generate_unalignedreads_sheet
 from generate_aligned_reads_sheet import generate_alignedreads_sheet
+
+
+LIBRARY_PREPARATION_FIXED_TSV = (
+    Path(__file__).resolve().parents[1]
+    / "files"
+    / "LibraryPreparation.fixed_values_filled_in.based_on_template_v1.4.2.tsv"
+)
+
+
+def generate_librarypreparation_sheet(out_tsv, out_xlsx):
+    shutil.copyfile(LIBRARY_PREPARATION_FIXED_TSV, out_tsv)
+    librarypreparation_df = pd.read_csv(
+        LIBRARY_PREPARATION_FIXED_TSV,
+        sep="\t",
+        dtype=str,
+        keep_default_na=False,
+    )
+    librarypreparation_df.to_excel(out_xlsx, index=False)
+    print(f"✅ LibraryPreparation sheet saved to: {out_tsv} and {out_xlsx}")
 
 
 def normalize_tissue_label(tissue_label):
@@ -228,7 +249,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
         df = pd.read_csv(f, sep="\t").dropna(subset=["collaborator_sample_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
 
-        for sample_id in df["collaborator_sample_id"]:
+        for _, row in df.iterrows():
+            sample_id = row["collaborator_sample_id"]
             ts_match = df_all[df_all["collaborator_sample_id"] == sample_id]
             if ts_match.empty:
                 continue
@@ -239,6 +261,16 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                 molecule, molecule_detail = "RNA", "mRNA"
             else:
                 molecule, molecule_detail = "DNA", "Total DNA"
+            rna_integrity_number = (
+                row.get("rna_integrity_number", "")
+                if label in {"RNA_WATCHMAKER", "RNA_TRUSEQ"}
+                else ""
+            )
+            rna_integrity_number_instrument = (
+                "Caliper Life Sciences LabChip GX"
+                if label in {"RNA_WATCHMAKER", "RNA_TRUSEQ"}
+                else ""
+            )
 
             donor_part = sample_id.split("-")[0]
             core = sample_id.split("-")[1]
@@ -260,7 +292,9 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
                 "molecule":       molecule,
                 "molecule_detail":molecule_detail,
                 "external_id":    sample_id,
-                "samples":        ts_match["submitted_id"].values[0]
+                "samples":        ts_match["submitted_id"].values[0],
+                "rna_integrity_number": rna_integrity_number,
+                "rna_integrity_number_instrument": rna_integrity_number_instrument
             })
 
     analyte_df = pd.DataFrame(analyte_records)
@@ -280,6 +314,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     analyte_sheet["molecule_detail"] = analyte_df["molecule_detail"]
     analyte_sheet["external_id"] = analyte_df["external_id"]
     analyte_sheet["samples"] = analyte_df["samples"]
+    analyte_sheet["rna_integrity_number"] = analyte_df["rna_integrity_number"]
+    analyte_sheet["rna_integrity_number_instrument"] = analyte_df["rna_integrity_number_instrument"]
     analyte_sheet = analyte_sheet.drop_duplicates(subset=["submitted_id"])
     analyte_sheet.to_csv(out_analyte_tsv, sep="\t", index=False)
     analyte_sheet.to_excel(out_analyte_xlsx, index=False)
@@ -308,6 +344,11 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
         else:
             return "other"
 
+    def infer_library_preparation(library_type):
+        if library_type == "RNA_WATCHMAKER":
+            return "BROAD_LIBRARY-PREPARATION_WATCHMAKER"
+        return ""
+
     lib_counter = {}
     library_records = []
 
@@ -330,7 +371,8 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
         library_records.append({
             "submitted_id": lib_id,
             "analytes": analyte_id,
-            "assay": assay
+            "assay": assay,
+            "library_preparation": infer_library_preparation(library_type)
         })
 
     library_df = pd.DataFrame(library_records)
@@ -367,17 +409,27 @@ def generate_metadata_sheets(donor_info_tsv, sr_dna_files, lr_dna_files, rna_tsv
     # --- SOFTWARE SHEET --- (NEW ADDITION)
     software_records = []
     
-    # Check if we have short-read DNA or RNA files that would use DRAGEN
-    has_shortread_or_rna = False
-    if sr_dna_files or rna_tsv:
-        has_shortread_or_rna = True
-    
-    if has_shortread_or_rna:
+    if sr_dna_files:
         software_records.append({
             "submitted_id": "BROAD_SOFTWARE_DRAGEN_07.021.604.3.7.8",
             "category": "Alignment",
             "title": "DRAGEN",
             "version": "07.021.604.3.7.8",
+            "description": "",
+            "binary_url": "",
+            "commit": "",
+            "source_url": "",
+            "gpu_architecture": "",
+            "model": "",
+            "modification_tags": ""
+        })
+
+    if rna_tsv:
+        software_records.append({
+            "submitted_id": "BROAD_SOFTWARE_DRAGEN_4.2.4-4",
+            "category": "Alignment",
+            "title": "DRAGEN",
+            "version": "4.2.4-4",
             "description": "",
             "binary_url": "",
             "commit": "",
@@ -472,6 +524,20 @@ def main():
         help="Where to write the Library sheet XLSX"
     )
     parser.add_argument(
+        "--out-librarypreparation-tsv",
+        "--out-library-preparation-tsv",
+        dest="out_librarypreparation_tsv",
+        default=None,
+        help="Where to write the LibraryPreparation sheet TSV"
+    )
+    parser.add_argument(
+        "--out-librarypreparation-xlsx",
+        "--out-library-preparation-xlsx",
+        dest="out_librarypreparation_xlsx",
+        default=None,
+        help="Where to write the LibraryPreparation sheet XLSX"
+    )
+    parser.add_argument(
         "--out-sequencing-tsv", required=True,
         help="Where to write the Sequencing sheet TSV"
     )
@@ -521,6 +587,11 @@ def main():
     # Check that at least one sequencing type is provided
     if not any([args.sr_dna, args.lr_dna, args.rna]):
         parser.error("At least one of --sr-dna, --lr-dna, or --rna must be provided")
+    if args.rna and not all([args.out_librarypreparation_tsv, args.out_librarypreparation_xlsx]):
+        parser.error(
+            "--out-librarypreparation-tsv and --out-librarypreparation-xlsx are required "
+            "when --rna is provided"
+        )
     
     generate_metadata_sheets(
         args.donor_info, args.sr_dna, args.lr_dna, args.rna, args.uberon,
@@ -559,6 +630,8 @@ def main():
     generate_fileset_sheet(helper_args)
     generate_unalignedreads_sheet(helper_args)
     generate_alignedreads_sheet(helper_args)
+    if args.rna:
+        generate_librarypreparation_sheet(args.out_librarypreparation_tsv, args.out_librarypreparation_xlsx)
     
     with pd.ExcelWriter(args.out_combined_xlsx, engine="openpyxl") as writer:
         df_donor = pd.read_excel(args.out_donor_xlsx, dtype={"tpc_submitted": str})
@@ -568,6 +641,8 @@ def main():
         pd.read_excel(args.out_tissuesample_xlsx) .to_excel(writer, sheet_name="TissueSample",    index=False)
         pd.read_excel(args.out_analyte_xlsx)      .to_excel(writer, sheet_name="Analyte",         index=False)
         pd.read_excel(args.out_library_xlsx)      .to_excel(writer, sheet_name="Library",         index=False)
+        if args.rna:
+            pd.read_excel(args.out_librarypreparation_xlsx).to_excel(writer, sheet_name="LibraryPreparation", index=False)
         pd.read_excel(args.out_sequencing_xlsx)   .to_excel(writer, sheet_name="Sequencing",      index=False)
         pd.read_excel(args.out_fileset_xlsx)      .to_excel(writer, sheet_name="FileSet",         index=False)
         pd.read_excel(args.out_unalignedreads_xlsx).to_excel(writer, sheet_name="UnalignedReads",   index=False)

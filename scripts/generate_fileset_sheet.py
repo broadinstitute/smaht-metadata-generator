@@ -46,7 +46,7 @@ def infer_sequencing(library_type):
     if "PACBIO" in library_type:
         return "BROAD_SEQUENCING_PACBIO_15000BP_20X"
     elif "WATCHMAKER" in library_type:
-        return "BROAD_SEQUENCING_NOVASEQXPLUS_25B_145BP_100M"
+        return "BROAD_SEQUENCING_NOVASEQXPLUS_25B_145BP_200M"
     elif "TRUSEQ" in library_type:
         return "BROAD_SEQUENCING_NOVASEQ6000_150BP_75M"
     else:
@@ -164,10 +164,10 @@ def generate_fileset_sheet(args):
     out_df["libraries"] = out_df["submitted_id"].apply(match_libraries)
     
     # Ensure all required columns exist
-    for c in ["submitted_id", "description", "libraries", "sequencing", "samples"]:
+    for c in ["submitted_id", "description", "submitter_comments", "libraries", "sequencing", "samples"]:
         if c not in out_df.columns:
             out_df[c] = ""
-    out_df = out_df[["submitted_id", "description", "libraries", "sequencing", "samples"]]
+    out_df = out_df[["submitted_id", "description", "submitter_comments", "libraries", "sequencing", "samples"]]
     
     out_df.to_csv(args.out_fileset_tsv, sep="\t", index=False)
     out_df.to_excel(args.out_fileset_xlsx, index=False)
