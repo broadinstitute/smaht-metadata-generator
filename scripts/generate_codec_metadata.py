@@ -14,6 +14,7 @@ Description:
     - Include sample suffixes in IDs to ensure uniqueness
     - Maintain 1:1:1:1 hierarchical relationships
     - Preserve selective tissue normalization (only 4 special tissues get hyphens)
+    - Use unique sample_id to prevent duplicate submitted_ids in AlignedReads and VariantCalls
 """
 
 import pandas as pd
@@ -100,6 +101,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
         df = df.dropna(subset=["collaborator_sample_id", "donor_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
         df["donor_id"] = df["donor_id"].astype(str)
+        df["sample_id"] = df["sample_id"].astype(str)  # Ensure sample_id is string
         df_list.append(df)
 
     if not df_list:
@@ -314,28 +316,30 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     empty_unaligned_df.to_excel(out_unalignedreads_xlsx, index=False)
     print(f"✅ Empty UnalignedReads sheet saved to: {out_unalignedreads_tsv} and {out_unalignedreads_xlsx}")
 
-    # --- ALIGNED READS SHEET (FIXED: use sample suffixes for consistent linking) ---
+    # --- ALIGNED READS SHEET (FIXED: use unique sample_id to prevent duplicates) ---
     aligned_records = []
     
     for codec_file in codec_files:
         df = pd.read_csv(codec_file, sep="\t")
         df = df.dropna(subset=["collaborator_sample_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
+        df["sample_id"] = df["sample_id"].astype(str)  # Ensure sample_id is string
         
         for _, row in df.iterrows():
-            sample_id = row["collaborator_sample_id"]
-            donor = sample_id.split("-")[0]
-            core = sample_id.split("-")[1]
-            sample_suffix = sample_id.split("-")[-1]
+            collaborator_sample_id = row["collaborator_sample_id"]
+            unique_sample_id = row["sample_id"]  # e.g., SM-OE1VO
+            donor = collaborator_sample_id.split("-")[0]
+            core = collaborator_sample_id.split("-")[1]
+            sample_suffix = collaborator_sample_id.split("-")[-1]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
             
             for protocol in codec_protocols:
-                # FIXED: Use sample suffix to match fileset IDs
+                # Use sample suffix to match fileset IDs
                 fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
                 
-                # RAW BAM (from RAW_BAM column)
+                # RAW BAM - FIXED: Use unique sample_id to ensure uniqueness
                 if pd.notna(row.get("RAW_BAM")):
-                    raw_id = f"{submitter_prefix}_ALIGNED-READS_RAW_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
+                    raw_id = f"{submitter_prefix}_ALIGNED-READS_RAW_{unique_sample_id}_CODEC-{collaborator_sample_id}-{protocol}".upper()
                     aligned_records.append({
                         "submitted_id": raw_id,
                         "filename": row["RAW_BAM"],
@@ -345,7 +349,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                         "n50": "",
                         "flow_cell_barcode": "",
                         "flow_cell_lane": "",
-                        "description": f"Raw bam CODEC_{sample_id}-{protocol.lower()}",
+                        "description": f"Raw bam CODEC_{collaborator_sample_id}-{protocol.lower()}",
                         "alignment_details": "Sorted",
                         "file_format": "bam",
                         "file_sets": fileset_id,
@@ -355,9 +359,9 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                         "software": f"{submitter_prefix}_SOFTWARE_CODEC_ALIGNMENT_PIPELINE_V1".upper()
                     })
                 
-                # PROCESSED BAM (from MolConsensusBAM column)
+                # PROCESSED BAM - FIXED: Use unique sample_id to ensure uniqueness
                 if pd.notna(row.get("MolConsensusBAM")):
-                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
+                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_{unique_sample_id}_CODEC-{collaborator_sample_id}-{protocol}".upper()
                     aligned_records.append({
                         "submitted_id": processed_id,
                         "filename": row["MolConsensusBAM"],
@@ -367,7 +371,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                         "n50": "",
                         "flow_cell_barcode": "",
                         "flow_cell_lane": "",
-                        "description": f"Processed duplex bam CODEC_{sample_id}-{protocol}",
+                        "description": f"Processed duplex bam CODEC_{collaborator_sample_id}-{protocol}",
                         "alignment_details": "Sorted",
                         "file_format": "bam",
                         "file_sets": fileset_id,
@@ -393,27 +397,29 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
     aligned_df.to_excel(out_alignedreads_xlsx, index=False)
     print(f"✅ AlignedReads sheet saved to: {out_alignedreads_tsv} and {out_alignedreads_xlsx}")
 
-    # --- VARIANT CALLS SHEET (FIXED: use sample suffixes for consistent linking) ---
+    # --- VARIANT CALLS SHEET (FIXED: use unique sample_id to prevent duplicates) ---
     variantcalls_records = []
     
     for codec_file in codec_files:
         df = pd.read_csv(codec_file, sep="\t")
         df = df.dropna(subset=["collaborator_sample_id"])
         df["collaborator_sample_id"] = df["collaborator_sample_id"].astype(str)
+        df["sample_id"] = df["sample_id"].astype(str)  # Ensure sample_id is string
         
         for _, row in df.iterrows():
-            sample_id = row["collaborator_sample_id"]
-            donor = sample_id.split("-")[0]
-            core = sample_id.split("-")[1]
-            sample_suffix = sample_id.split("-")[-1]
+            collaborator_sample_id = row["collaborator_sample_id"]
+            unique_sample_id = row["sample_id"]  # e.g., SM-OE1VO
+            donor = collaborator_sample_id.split("-")[0]
+            core = collaborator_sample_id.split("-")[1]
+            sample_suffix = collaborator_sample_id.split("-")[-1]
             tissue_label = normalize_tissue_label(tissue_map.get(core, core))
             
             for protocol in codec_protocols:
                 if pd.notna(row.get("vcf")):
-                    # FIXED: Use sample suffix to match other IDs
+                    # Use sample suffix to match other IDs
                     fileset_id = f"{submitter_prefix}_FILE-SET_CODEC_{donor}_{tissue_label}-{protocol}_{sample_suffix}".upper()
-                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
-                    variant_id = f"{submitter_prefix}_VARIANT-CALLS_CODEC-{sample_id}-{protocol}_{sample_suffix}".upper()
+                    processed_id = f"{submitter_prefix}_ALIGNED-READS_PROCESSED_{unique_sample_id}_CODEC-{collaborator_sample_id}-{protocol}".upper()
+                    variant_id = f"{submitter_prefix}_VARIANT-CALLS_{unique_sample_id}_CODEC-{collaborator_sample_id}-{protocol}".upper()
                     
                     variantcalls_records.append({
                         "submitted_id": variant_id,
@@ -421,7 +427,7 @@ def generate_codec_metadata_sheets(donor_info_tsv, codec_files, uberon_tsv,
                         "data_type": "SNV | Indel",
                         "filename": row["vcf"],
                         "submitted_md5sum": "",
-                        "description": f"CODEC_{sample_id}-{protocol}",
+                        "description": f"CODEC_{collaborator_sample_id}-{protocol}",
                         "comparators": "",
                         "external_databases": "",
                         "filtering_methods": "",
